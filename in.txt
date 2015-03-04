@@ -1,0 +1,21 @@
+decl
+	Integer a,b,c[5],i;	
+enddecl
+
+begin
+	a=a+1;
+	read(a);
+	write(a);
+	i=0;
+	while(i<5)do
+		read(c[i]);
+		i=i+1;
+	endwhile;
+
+	i=0;
+	while(i<5)do
+		write(c[i]);
+		i=i+1;
+	endwhile;
+
+end
