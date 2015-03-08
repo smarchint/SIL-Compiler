@@ -17,6 +17,8 @@
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
+
+	void evalDecl(struct node *nd,int i);
 //		| '(' Relexp ')'	{$$=$2;}
 	struct node* t;
 
@@ -81,7 +83,7 @@ Program: GDefblock  Mainblock	{
 									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
 									else{
 										//	$$=makenode($2,NULL,_Program,0,DUMMY);
-										evaltree($2,-1);
+										//evaltree($2,-1);
 										//CodeGen($2);
 										print_table();
 										exit(1);
@@ -89,7 +91,7 @@ Program: GDefblock  Mainblock	{
 								}
 	;
 
-GDefblock : DECL GDefList ENDDECL	{$$=$2;evaltree($$);}
+GDefblock : DECL GDefList ENDDECL	{$$=$2; evalDecl($2,-1);}
 		;
 
 GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
@@ -349,66 +351,41 @@ int type_check(struct node* nd,int i){
 
 
 int RegNo = 0;	//range 0-7
+
 int LocNo = 0;	//range 0-25
 
-void evalDecl(struct node *nd,int i){
+//suggestion : Add error msg for redeclarations;
+void evalDecl(struct node *nd,int i){	//i for type filling in table
+	if(nd == NULL ) return;
 	switch(nd->flag){
-
 		case _GDefList: evalDecl(nd->left,i);evalDecl(nd->right,i); break;
 		case GINT: 		evalDecl(nd->left,0); break;
 		case GBOOL: 	evalDecl(nd->left,1); break;
 		case _Varlist: 	evalDecl(nd->left,i);
 						if(nd->right->flag==ID) {
-							
+							gentry(nd->right->varname,i,1,LocNo);
+							LocNo++;
 						}
-						else if(nd->right->flag==ARRAY){
-							
+						else if(nd->right->flag == ARRAY){
+							int size = nd->right->left->val;
+							gentry(nd->right->varname,i,size,LocNo);
+							LocNo += size;							
 
-						}break;
-		
-
-
+						}
+						break;
 	}
+}
+
+
+
+
+
+
+
+//========================EVAL TREE
 
 
 /*
-	if(nd->flag==_GDefList){
-
-		evalDecl(nd->left,i);
-		evalDecl(nd->right,i);
-
-	}
-
-	else if(nd->flag==GINT){
-		evalDecl(nd->left,0);	
-
-	}
-
-	else if(nd->flag==GBOOL){
-		evalDecl(nd->left,1);	
-	}
-
-
-
-	else if(nd->flag==_Varlist){
-		evalDecl(nd->left,i);
-		
-		if(nd->right->flag==ID) {
-			gentry(nd->right->varname,i,1);
-			return 1;
-		}
-		
-		else if(nd->right->flag==ARRAY){
-			int size=evalDecl(nd->right->left,i);
-			gentry(nd->right->varname,i,size);
-			return 1;
-
-		}
-*/
-	}
-
-
-
 //improvement required : use switch and cases to make code pretty
 //tree evaluation------------======================================================
 int evaltree(struct node* nd,int i){		//infix eval
@@ -616,3 +593,4 @@ int evaltree(struct node* nd,int i){		//infix eval
 
 	return 1;
 }
+*/

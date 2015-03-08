@@ -2,17 +2,23 @@
 //no dependency for this file
 			//global; symbol table
 
+
+//====================STRUCT for SYMBOL table
  struct gnode {
 		char *name;	//variable name
 		int type;	//for (0)int or (1)bool
 		int size; 	//1 for int and n for array
-		int *bind; 	//pointer to the entity
+		int bind; 	//pointer to the entity
 		struct gnode * next;	//pointer in linked list
 } ;
 
 struct gnode* head=NULL;
 //struct gnode* temp=NULL;
 
+
+//=====================FETCH
+
+//fetches sybol table node of crresponding var name
 struct gnode* fetch(char* _name){	//getter
 	struct gnode* temp;
 	temp=head;
@@ -22,7 +28,55 @@ struct gnode* fetch(char* _name){	//getter
 	} 
 	return temp;
 }
-								//setter
+
+
+
+//======================GENTRY
+
+// int _loc is added for compilation stage for stage8
+//		biind will now be an int and will contain locno. 
+void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
+	//if name is present
+	if (!fetch(_name)){
+
+		struct gnode* temp;
+		temp=(struct gnode *)malloc(sizeof(struct  gnode));
+
+		/* //this is for stage 8 interpreter
+
+		int *intptr;
+		intptr=(int*) malloc(_size*sizeof(int));
+		
+		//initializing declared int to zero (0).
+		int i;
+		for(i=0;i<_size;i++){
+			*(intptr+i)=0;
+		}
+		
+		*/
+
+		temp->name=_name;
+		temp->size=_size;
+		temp->type=_type;
+		temp->bind=_loc;
+		
+		temp->next=head;
+		head=temp;
+		
+	}
+	else{
+		//error message : if variable is not present in symbol table
+		printf("Sorry already present or not found\n");
+	}
+}
+
+
+
+//===================HELPER FUNCTIONS
+
+//uset at assignment hopefully will not be used for compilation 
+//		(only for interpreter)
+/*
 void set(char* _name,int _value,int _place){
 
 	struct gnode* temp;
@@ -44,40 +98,9 @@ void set(char* _name,int _value,int _place){
 		//if(_place == 0) {printf("ERROR ikkada : %d\n",*(temp->bind));}
 	//}
 }
-void gentry(char* _name,int _type,int _size){	//type : 0 fro int
-	//printf("test at gentry %s\n",_name);
-	if (!fetch(_name)){
-		int *intptr;
-		struct gnode* temp;
-		temp=(struct gnode *)malloc(sizeof(struct  gnode));
-		intptr=(int*) malloc(_size*sizeof(int));
-		
-		//initializing declared int to zero (0).
-		int i;
-		for(i=0;i<_size;i++){
-			*(intptr+i)=0;
-		}
-		//printf("gentry initiated\n");
-		//printf("---------------------\n");
-		//printf("init head addr 		: %d\n",head);
-		//printf("new table node addr : %d\n\n",temp );
-		temp->name=_name;
-		temp->size=_size;
-		temp->type=_type;
-		temp->bind=intptr;
-		//printf("intptr : %d\n",intptr);
-		temp->next=head;
-		head=temp;
-		//free(_name);
-	}
-	else{
-		printf("Sorry already present or not found\n");
-	}
-}
-int get_type(struct gnode *temp){
-	return temp->type;
-}
+*/
 
+//Additional function just to print symbol table 
 void print_table(){
 	printf("\ntable----\n");
 	struct gnode* temp;
@@ -88,12 +111,12 @@ void print_table(){
 			printf("(%d) %s(%d) : ",count,temp->name,temp->type);
 			int place=0;
 			for(place=0;place< temp->size; place++){
-				printf("%d ",*(temp->bind+place) );
+				printf("%d ", temp->bind+place );
 			}
 			printf("\n");
 		}	
 		else{
-			printf("(%d) %s(%d): %d\n",count,temp->name,temp->type,*(temp->bind));
+			printf("(%d) %s(%d): %d\n",count,temp->name,temp->type,temp->bind);
 		}
 		temp=temp->next;
 		count++;
