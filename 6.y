@@ -382,25 +382,7 @@ void evalDecl(struct node *nd,int i){	//i for type filling in table
 	}
 }
 
-int getLocArray(struct node * nd){
-	
-	int r = CodeGen(nd->left);
 
-	int loc = getLoc(nd->varname);
-
-	int r1 = getReg();
-
-	int foo = fprintf(fp,"MOV R%d,%d\n",r1,loc);	//mov r1 loc
-
-	foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);	//add r + r1	
-
-
-	freeReg(r1);
-
-	return r; //contains final location of array element
-
-
-}
 
 int getLoc(char * varname){
 
@@ -413,15 +395,38 @@ int getLoc(char * varname){
 
 int getReg(){
 //Suggestion : Add error msg if RegNo exceeds 7
-	int r = RegNo++;
+	
+	RegNo++;
 
+	int r = RegNo;
+	
 	return r;
 }
 
-int freeReg(int r){	
+void freeReg(int r){	
 //if reg r at top of reg stack the remove else return error
 
-	if(r==RegNo) RegNo--;
+	//if(r==RegNo)
+	RegNo--;
+
+}
+
+int getLocArray(struct node * nd){
+	
+	int r = CodeGen(nd->left);
+
+	int loc = getLoc(nd->varname);
+
+	int r1 = getReg();
+
+	int foo = fprintf(fp,"MOV R%d,%d\n",r1,loc);	//mov r1 loc
+
+	foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);//add r + r1	
+
+	freeReg(r1);
+
+	return r; //contains final location of array element
+
 
 }
 
@@ -431,6 +436,13 @@ int CodeGen(struct node *nd){
 	if(nd==NULL) return -1;
 
 	switch(nd->flag){
+		case INT:	{int r = getReg();
+
+					int foo = fprintf(fp,"MOV R%d,%d\n",r,nd->val);
+
+					return r;
+
+					break;} 
 
 		case ID :	{int r = getReg();
 					
