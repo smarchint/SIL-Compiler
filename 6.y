@@ -347,6 +347,8 @@ int type_check(struct node* nd,int i){
 
 //CODE GENERATION PART=================================================================
 
+
+
 int regcount=0;	//range 0-7
 int locnum=0;	//range 0-25
 
