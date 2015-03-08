@@ -8,15 +8,13 @@ begin
 
 	d=True;
 	f=True;
-
-	c=a*b;
+	
 	write(c);
 
 	if(a>=b) then 
 		write(b%3);
 	endif;
-
-	d=10;
+	d=10;	 	
 	f=True;
 	e=False;
 

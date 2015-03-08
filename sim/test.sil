@@ -1,0 +1,11 @@
+START
+
+MOV R0, -9
+
+MOV R1, 8
+
+MOV R0, R1
+
+OUT R0
+
+HALT

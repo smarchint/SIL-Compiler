@@ -4,16 +4,7 @@
 	#include <string.h>
 	//#include "lex.yy.c"
 	int n;
-	#define DUMMY "sai"
-	#define _INT 1
-	#define	_IDENTIFIER 2
-	#define _READ 3
-	#define _WRITE 4
-	#define _IF 5
-	#define _THEN 6
-	#define _WHILE 7
-	#define _DO 8
-	#define _EQEQ 9
+	#define DUMMY "noString"
 	#define _INTD 10
 	#include "table1.c"
 	#include "tree1.c"
