@@ -1,0 +1,66 @@
+decl
+	Integer a,b,c,arr[10];
+	bool  d,e,f,h;
+enddecl
+begin
+	a=10;b=23;c=45;
+	arr[5]=66;
+
+	d=True;
+	f=True;
+	
+	write(c);
+
+	if(a>=b) then 
+		write(b%3);
+	endif;
+	d=10;	 	
+	f=True;
+	e=False;
+
+	
+	if(1<2 && 2<3)then
+		write(230000);
+	endif;
+	
+	
+	if( d && e || f)then
+		write(10000);
+
+	if( f || d) then
+		write(40000);
+	endif;
+
+
+	if(d && d) then
+		write(50000);
+	endif;
+
+
+	d=1<2 && 2<3;
+	if(d)then
+		write(1234);
+	endif;
+
+
+	if(!e && f) then
+		write(30000);
+	endif;
+	e=True;
+	f=e;
+	d=False;
+	if(!e || e) then
+		write(30001);
+	endif;
+
+
+
+	d=False		;
+	if(!d) then write(2345); endif;
+	endif;
+
+
+
+end
+
+	
