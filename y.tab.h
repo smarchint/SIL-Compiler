@@ -111,7 +111,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 28 "6.y"
+#line 31 "6.y"
 
 	int val;
 	char* id;

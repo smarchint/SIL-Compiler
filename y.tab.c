@@ -89,6 +89,9 @@
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
 
+
+	FILE * fp;
+
 	void evalDecl(struct node *nd,int i);
 //		| '(' Relexp ')'	{$$=$2;}
 	struct node* t;
@@ -96,7 +99,7 @@
 
 
 /* Line 189 of yacc.c  */
-#line 100 "y.tab.c"
+#line 103 "y.tab.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -195,7 +198,7 @@ typedef union YYSTYPE
 {
 
 /* Line 214 of yacc.c  */
-#line 28 "6.y"
+#line 31 "6.y"
 
 	int val;
 	char* id;
@@ -204,7 +207,7 @@ typedef union YYSTYPE
 
 
 /* Line 214 of yacc.c  */
-#line 208 "y.tab.c"
+#line 211 "y.tab.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -216,7 +219,7 @@ typedef union YYSTYPE
 
 
 /* Line 264 of yacc.c  */
-#line 220 "y.tab.c"
+#line 223 "y.tab.c"
 
 #ifdef short
 # undef short
@@ -517,10 +520,10 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    81,    81,    94,    97,    99,   103,   106,   111,   115,
-     117,   121,   125,   129,   134,   138,   142,   149,   151,   156,
-     158,   160,   162,   164,   166,   168,   170,   172,   174,   176,
-     178,   182,   184,   186,   188,   190,   192,   194,   199,   201
+       0,    84,    84,    99,   102,   104,   108,   111,   116,   120,
+     122,   126,   130,   134,   139,   143,   147,   154,   156,   161,
+     163,   165,   167,   169,   171,   173,   175,   177,   179,   181,
+     183,   187,   189,   191,   193,   195,   197,   199,   204,   206
 };
 #endif
 
@@ -1491,14 +1494,16 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 81 "6.y"
+#line 84 "6.y"
     {	
 									//print_table();
 									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
 									else{
 										//	$$=makenode($2,NULL,_Program,0,DUMMY);
 										//evaltree($2,-1);
-										//CodeGen($2);
+										fp= fopen("outfile.txt","a");
+										CodeGen((yyvsp[(2) - (2)].ptr));
+										int z= fclose(fp);
 										print_table();
 										exit(1);
 									}
@@ -1508,266 +1513,266 @@ yyreduce:
   case 3:
 
 /* Line 1455 of yacc.c  */
-#line 94 "6.y"
+#line 99 "6.y"
     {(yyval.ptr)=(yyvsp[(2) - (3)].ptr); evalDecl((yyvsp[(2) - (3)].ptr),-1);}
     break;
 
   case 4:
 
 /* Line 1455 of yacc.c  */
-#line 97 "6.y"
+#line 102 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_GDefList,0,DUMMY);}
     break;
 
   case 5:
 
 /* Line 1455 of yacc.c  */
-#line 99 "6.y"
+#line 104 "6.y"
     {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
     break;
 
   case 6:
 
 /* Line 1455 of yacc.c  */
-#line 103 "6.y"
+#line 108 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(2) - (3)].ptr),NULL,GINT,0,DUMMY); }
     break;
 
   case 7:
 
 /* Line 1455 of yacc.c  */
-#line 106 "6.y"
+#line 111 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(2) - (3)].ptr),NULL,GBOOL,0,DUMMY); }
     break;
 
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 111 "6.y"
+#line 116 "6.y"
     {(yyval.ptr) = (yyvsp[(2) - (3)].ptr);}
     break;
 
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 115 "6.y"
+#line 120 "6.y"
     {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
     break;
 
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 117 "6.y"
+#line 122 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_StmtList,0,DUMMY);}
     break;
 
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 123 "6.y"
+#line 128 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(3) - (5)].ptr),NULL,WRITE,0,DUMMY);if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 127 "6.y"
+#line 132 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(3) - (5)].ptr),NULL,READ,0,DUMMY);if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 131 "6.y"
+#line 136 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(3) - (8)].ptr),(yyvsp[(6) - (8)].ptr),IF,0,DUMMY);if(!type_check((yyval.ptr),1)==1){ getline();TypeFlag = 0;}}
     break;
 
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 136 "6.y"
+#line 141 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(3) - (8)].ptr),(yyvsp[(6) - (8)].ptr),WHILE,0,DUMMY);if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 140 "6.y"
+#line 145 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (4)].ptr),(yyvsp[(3) - (4)].ptr),'=',0,DUMMY);if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 144 "6.y"
+#line 149 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (4)].ptr),(yyvsp[(3) - (4)].ptr),'=',0,DUMMY);if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 149 "6.y"
+#line 154 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_Varlist,0,DUMMY);}
     break;
 
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 151 "6.y"
+#line 156 "6.y"
     {(yyval.ptr)=makenode(NULL,(yyvsp[(1) - (1)].ptr),_Varlist,0,DUMMY);}
     break;
 
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 156 "6.y"
+#line 161 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'<',0,DUMMY);	if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 158 "6.y"
+#line 163 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'>',0,DUMMY);	if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 160 "6.y"
+#line 165 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),GE,0,DUMMY);		if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 162 "6.y"
+#line 167 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),LE,0,DUMMY);		if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 164 "6.y"
+#line 169 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),NE,0,DUMMY);		if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 24:
 
 /* Line 1455 of yacc.c  */
-#line 166 "6.y"
+#line 171 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),EQEQ,0,DUMMY);	if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 25:
 
 /* Line 1455 of yacc.c  */
-#line 168 "6.y"
+#line 173 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(2) - (2)].ptr),NULL,NOT,0,DUMMY);	if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 26:
 
 /* Line 1455 of yacc.c  */
-#line 170 "6.y"
+#line 175 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),AND,0,DUMMY);	if(!type_check((yyval.ptr),1)==1){getline();TypeFlag = 0;}}
     break;
 
   case 27:
 
 /* Line 1455 of yacc.c  */
-#line 172 "6.y"
+#line 177 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),OR,0,DUMMY);		if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
     break;
 
   case 28:
 
 /* Line 1455 of yacc.c  */
-#line 174 "6.y"
+#line 179 "6.y"
     {(yyval.ptr)=makenode(NULL,NULL,_Truth,TRUE,DUMMY);}
     break;
 
   case 29:
 
 /* Line 1455 of yacc.c  */
-#line 176 "6.y"
+#line 181 "6.y"
     {(yyval.ptr)=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
     break;
 
   case 30:
 
 /* Line 1455 of yacc.c  */
-#line 178 "6.y"
+#line 183 "6.y"
     {(yyval.ptr)=(yyvsp[(1) - (1)].ptr); }
     break;
 
   case 31:
 
 /* Line 1455 of yacc.c  */
-#line 182 "6.y"
+#line 187 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'+',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
     break;
 
   case 32:
 
 /* Line 1455 of yacc.c  */
-#line 184 "6.y"
+#line 189 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'-',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
     break;
 
   case 33:
 
 /* Line 1455 of yacc.c  */
-#line 186 "6.y"
+#line 191 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'*',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
     break;
 
   case 34:
 
 /* Line 1455 of yacc.c  */
-#line 188 "6.y"
+#line 193 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'/',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
     break;
 
   case 35:
 
 /* Line 1455 of yacc.c  */
-#line 190 "6.y"
+#line 195 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_mod,0,DUMMY);if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
     break;
 
   case 36:
 
 /* Line 1455 of yacc.c  */
-#line 192 "6.y"
+#line 197 "6.y"
     {(yyval.ptr)=makenode(NULL,NULL,INT,(yyvsp[(1) - (1)].val),DUMMY);}
     break;
 
   case 37:
 
 /* Line 1455 of yacc.c  */
-#line 194 "6.y"
+#line 199 "6.y"
     {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
     break;
 
   case 38:
 
 /* Line 1455 of yacc.c  */
-#line 199 "6.y"
+#line 204 "6.y"
     {(yyval.ptr)=makenode(NULL,NULL,ID,0,(yyvsp[(1) - (1)].id));}
     break;
 
   case 39:
 
 /* Line 1455 of yacc.c  */
-#line 201 "6.y"
+#line 206 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(3) - (4)].ptr),NULL,ARRAY,0,(yyvsp[(1) - (4)].id));}
     break;
 
 
 
 /* Line 1455 of yacc.c  */
-#line 1771 "y.tab.c"
+#line 1776 "y.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1979,7 +1984,7 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 206 "6.y"
+#line 211 "6.y"
 
 
 //version 2   typecheck need to be improved
@@ -2126,9 +2131,10 @@ int type_check(struct node* nd,int i){
 //CODE GENERATION PART=================================================================
 
 
+//free reg after completion of its requirement
+int RegNo = -1;	//range 0-7
 
-int RegNo = 0;	//range 0-7
-
+//use and increase to size
 int LocNo = 0;	//range 0-25
 
 //suggestion : Add error msg for redeclarations;
@@ -2153,7 +2159,169 @@ void evalDecl(struct node *nd,int i){	//i for type filling in table
 	}
 }
 
+int getLocArray(struct node * nd){
+	
+	int r = CodeGen(nd->left);
 
+	int loc = getLoc(nd->varname);
+
+	int r1 = getReg();
+
+	int foo = fprintf(fp,"MOV R%d,%d\n",r1,loc);	//mov r1 loc
+
+	foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);	//add r + r1	
+
+
+	freeReg(r1);
+
+	return r; //contains final location of array element
+
+
+}
+
+int getLoc(char * varname){
+
+	struct gnode * temp;
+	
+	temp = fetch(varname);
+
+	return temp->bind;
+}
+
+int getReg(){
+//Suggestion : Add error msg if RegNo exceeds 7
+	int r = RegNo++;
+
+	return r;
+}
+
+int freeReg(int r){	
+//if reg r at top of reg stack the remove else return error
+
+	if(r==RegNo) RegNo--;
+
+}
+
+//generates machine code for SIM
+//returns regno to be used at an instance
+int CodeGen(struct node *nd){
+	if(nd==NULL) return -1;
+
+	switch(nd->flag){
+
+		case ID :	{int r = getReg();
+					
+					int loc = getLoc(nd->varname);
+					
+					int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+					
+					return r;
+					
+					break;}
+
+		case ARRAY :{int r = getReg();
+					
+					int r1 = getLocArray(nd);	// in a register
+
+					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);//mov r [r1] 	
+
+					freeReg(r1);
+
+					return r;
+					
+					break;}
+		
+		case '+' :	
+					
+					{int r1 = CodeGen(nd->left);	//increment for r1 will be done in rec part
+					
+					int r2 = CodeGen(nd->right);
+
+					int foo =  fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+
+					freeReg(r2);
+
+					return r1;	
+
+					break;}
+
+		case '=' :	//one reg for returning remaining canbe disposed off
+					{int r = CodeGen(nd->right);				//right part of =
+
+					if(nd->left->flag == ID){
+						int loc = getLoc(nd->left->varname);
+
+						int foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
+						
+						freeReg(r);
+
+						return -1;
+					}
+
+					else if(nd->left->flag == ARRAY){		//left part of =
+
+						int r1 = getLocArray(nd->left);
+
+						int foo =  fprintf(fp,"MOV [R%d],R%d\n",r1,r);
+
+						freeReg(r1);
+
+						freeReg(r);
+
+						return -1;						
+
+					}
+					
+					break;}
+
+		case _StmtList:{CodeGen(nd->left);CodeGen(nd->right);break;}
+
+		case WRITE : //printing out of register
+					{if(nd->left->flag == ID){
+						
+						int loc = getLoc(nd->left->varname);
+						
+						int r = getReg();
+
+						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+
+						foo = fprintf(fp,"OUT R%d\n",r);
+
+						freeReg(r);
+
+						return -1;
+
+
+					}
+					else if(nd->left->flag == ARRAY){
+
+						int r1 = getLocArray(nd->left);
+						
+						int r = getReg();
+
+						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,r1);
+
+						foo = fprintf(fp,"OUT R%d\n",r);
+
+						freeReg(r);
+
+						freeReg(r1);
+
+						return -1;
+
+
+					}
+					break;}
+
+		//case :
+
+
+
+	}
+
+
+
+}
 
 
 

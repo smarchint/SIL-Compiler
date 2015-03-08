@@ -5,5 +5,8 @@ enddecl
 
 begin
 	a=1;
+	write(a);
+	a=a+1;
+	a=a+23;
 
 end

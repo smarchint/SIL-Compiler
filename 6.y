@@ -18,6 +18,9 @@
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
 
+
+	FILE * fp;
+
 	void evalDecl(struct node *nd,int i);
 //		| '(' Relexp ')'	{$$=$2;}
 	struct node* t;
@@ -84,7 +87,9 @@ Program: GDefblock  Mainblock	{
 									else{
 										//	$$=makenode($2,NULL,_Program,0,DUMMY);
 										//evaltree($2,-1);
-										//CodeGen($2);
+										fp= fopen("outfile.txt","a");
+										CodeGen($2);
+										int z= fclose(fp);
 										print_table();
 										exit(1);
 									}
@@ -349,9 +354,10 @@ int type_check(struct node* nd,int i){
 //CODE GENERATION PART=================================================================
 
 
+//free reg after completion of its requirement
+int RegNo = -1;	//range 0-7
 
-int RegNo = 0;	//range 0-7
-
+//use and increase to size
 int LocNo = 0;	//range 0-25
 
 //suggestion : Add error msg for redeclarations;
@@ -376,7 +382,169 @@ void evalDecl(struct node *nd,int i){	//i for type filling in table
 	}
 }
 
+int getLocArray(struct node * nd){
+	
+	int r = CodeGen(nd->left);
 
+	int loc = getLoc(nd->varname);
+
+	int r1 = getReg();
+
+	int foo = fprintf(fp,"MOV R%d,%d\n",r1,loc);	//mov r1 loc
+
+	foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);	//add r + r1	
+
+
+	freeReg(r1);
+
+	return r; //contains final location of array element
+
+
+}
+
+int getLoc(char * varname){
+
+	struct gnode * temp;
+	
+	temp = fetch(varname);
+
+	return temp->bind;
+}
+
+int getReg(){
+//Suggestion : Add error msg if RegNo exceeds 7
+	int r = RegNo++;
+
+	return r;
+}
+
+int freeReg(int r){	
+//if reg r at top of reg stack the remove else return error
+
+	if(r==RegNo) RegNo--;
+
+}
+
+//generates machine code for SIM
+//returns regno to be used at an instance
+int CodeGen(struct node *nd){
+	if(nd==NULL) return -1;
+
+	switch(nd->flag){
+
+		case ID :	{int r = getReg();
+					
+					int loc = getLoc(nd->varname);
+					
+					int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+					
+					return r;
+					
+					break;}
+
+		case ARRAY :{int r = getReg();
+					
+					int r1 = getLocArray(nd);	// in a register
+
+					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);//mov r [r1] 	
+
+					freeReg(r1);
+
+					return r;
+					
+					break;}
+		
+		case '+' :	
+					
+					{int r1 = CodeGen(nd->left);	//increment for r1 will be done in rec part
+					
+					int r2 = CodeGen(nd->right);
+
+					int foo =  fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+
+					freeReg(r2);
+
+					return r1;	
+
+					break;}
+
+		case '=' :	//one reg for returning remaining canbe disposed off
+					{int r = CodeGen(nd->right);				//right part of =
+
+					if(nd->left->flag == ID){
+						int loc = getLoc(nd->left->varname);
+
+						int foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
+						
+						freeReg(r);
+
+						return -1;
+					}
+
+					else if(nd->left->flag == ARRAY){		//left part of =
+
+						int r1 = getLocArray(nd->left);
+
+						int foo =  fprintf(fp,"MOV [R%d],R%d\n",r1,r);
+
+						freeReg(r1);
+
+						freeReg(r);
+
+						return -1;						
+
+					}
+					
+					break;}
+
+		case _StmtList:{CodeGen(nd->left);CodeGen(nd->right);break;}
+
+		case WRITE : //printing out of register
+					{if(nd->left->flag == ID){
+						
+						int loc = getLoc(nd->left->varname);
+						
+						int r = getReg();
+
+						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+
+						foo = fprintf(fp,"OUT R%d\n",r);
+
+						freeReg(r);
+
+						return -1;
+
+
+					}
+					else if(nd->left->flag == ARRAY){
+
+						int r1 = getLocArray(nd->left);
+						
+						int r = getReg();
+
+						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,r1);
+
+						foo = fprintf(fp,"OUT R%d\n",r);
+
+						freeReg(r);
+
+						freeReg(r1);
+
+						return -1;
+
+
+					}
+					break;}
+
+		//case :
+
+
+
+	}
+
+
+
+}
 
 
 
