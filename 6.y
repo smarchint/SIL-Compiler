@@ -82,6 +82,7 @@ Program: GDefblock  Mainblock	{
 									else{
 										//	$$=makenode($2,NULL,_Program,0,DUMMY);
 										evaltree($2,-1);
+										//CodeGen($2);
 										print_table();
 										exit(1);
 									}
@@ -141,7 +142,6 @@ Stmt : WRITE '(' Expr ')' ';'
 	{$$=makenode($1,$3,'=',0,DUMMY);if(!type_check($$,1)==1) {getline();TypeFlag = 0;}}
 
 
-	
 	; 
 
 Varlist :	Varlist ',' Var  	{$$=makenode($1,$3,_Varlist,0,DUMMY);}
@@ -199,7 +199,6 @@ Var : ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 	| ID '[' Expr ']'	{$$=makenode($3,NULL,ARRAY,0,$1);}
 
 	;
-
 
 
 %%
@@ -349,20 +348,64 @@ int type_check(struct node* nd,int i){
 
 
 
-int regcount=0;	//range 0-7
-int locnum=0;	//range 0-25
+int RegNo = 0;	//range 0-7
+int LocNo = 0;	//range 0-25
 
-int getloc(char * name){
+void evalDecl(struct node *nd,int i){
+	switch(nd->flag){
 
-	
+		case _GDefList: evalDecl(nd->left,i);evalDecl(nd->right,i); break;
+		case GINT: 		evalDecl(nd->left,0); break;
+		case GBOOL: 	evalDecl(nd->left,1); break;
+		case _Varlist: 	evalDecl(nd->left,i);
+						if(nd->right->flag==ID) {
+							
+						}
+						else if(nd->right->flag==ARRAY){
+							
 
-}
+						}break;
+		
+
+
+	}
+
+
+/*
+	if(nd->flag==_GDefList){
+
+		evalDecl(nd->left,i);
+		evalDecl(nd->right,i);
+
+	}
+
+	else if(nd->flag==GINT){
+		evalDecl(nd->left,0);	
+
+	}
+
+	else if(nd->flag==GBOOL){
+		evalDecl(nd->left,1);	
+	}
 
 
 
+	else if(nd->flag==_Varlist){
+		evalDecl(nd->left,i);
+		
+		if(nd->right->flag==ID) {
+			gentry(nd->right->varname,i,1);
+			return 1;
+		}
+		
+		else if(nd->right->flag==ARRAY){
+			int size=evalDecl(nd->right->left,i);
+			gentry(nd->right->varname,i,size);
+			return 1;
 
-
-
+		}
+*/
+	}
 
 
 
