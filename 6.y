@@ -339,16 +339,6 @@ int type_check(struct node* nd,int i){
 			return 0;							//not okay
 		}
 	}
-
-	else if(nd->flag == _StmtList) {
-		type_check(nd->left,-1);
-		type_check(nd->right,-1);
-
-	}
-	else if(nd->flag == THEN){
-			type_check(nd->right->left,-1);
-			type_check(nd->right->right,-1);
-	 }
 	
 
 	//ADD THE TYPR_CHECK FOR STMTLIST IN ELSE PART OF IF AND SO PART OF WHILE
@@ -367,6 +357,8 @@ int type_check(struct node* nd,int i){
 
 
 //CODE GENERATION PART=================================================================
+//reg call count
+int regCallCount = 0;
 
 int regStack[8];
 //for label generation
@@ -401,7 +393,9 @@ void evalDecl(struct node *nd,int i){	//i for type filling in table
 }
 
 void printRegStack(){
-	printf("regStack : ");
+	regCallCount++;
+
+	printf("( %d )regStack : ",regCallCount);
 	int i;
 	for( i=0;i<8;i++){
 		if(regStack[i]==0 && i >0) break;
@@ -543,7 +537,6 @@ int CodeGen(struct node *nd){
 		case  GE :	{int reg = op(nd,9); return reg;break;}
 		case  NE :	{int reg = op(nd,10); return reg;break;}
 
-
 		
 		case '=' :	//one reg for returning remaining canbe disposed off
 					{int r = CodeGen(nd->right);				//right part of =
@@ -645,6 +638,64 @@ int CodeGen(struct node *nd){
 					break;
 
 				}
+
+
+		case AND :{
+					int r1 = CodeGen(nd->left);
+
+					int r2 = CodeGen(nd->right);
+					
+					int foo = fprintf(fp,"MUL R%d,R%d\n",r1,r2);
+
+					freeReg(r2);
+
+					return r1;
+
+					break;
+
+					}
+
+		case OR :{
+					int r1 = CodeGen(nd->left);
+
+					int r2 = CodeGen(nd->right);
+					
+					int r3 = getReg();
+
+					int foo = fprintf(fp,"MOV R%d,R%d\n",r3,r1);
+
+					foo = fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+
+					foo = fprintf(fp,"MUL R%d,R%d\n",r3,r2);
+
+					foo = fprintf(fp,"SUB R%d,R%d\n",r1,r3);
+
+					freeReg(r3);
+
+					freeReg(r2);
+
+					return r1;
+
+					break;
+
+					}
+
+		case NOT :{
+					int r1 = CodeGen(nd->left);
+					
+					//YET to IMPLEMENT
+
+					int r2 = getReg();
+
+					
+					
+
+
+
+					break;
+
+					}
+
 		case WHILE :{
 						int l1 = Label;
 						Label++;
@@ -657,11 +708,13 @@ int CodeGen(struct node *nd){
 						Label++;
 						foo = fprintf(fp,"JZ R%d,L%d\n",r,l2);
 
-						int r1 = CodeGen(nd->right);
+						foo= CodeGen(nd->right);
 
 						 foo = fprintf(fp,"JMP L%d\n",l1);
 
 						 foo = fprintf(fp,"L%d:",l2);
+
+						 freeReg(r);
 
 						 return -1;
 
