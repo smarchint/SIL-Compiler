@@ -14,7 +14,7 @@ begin
 	if(a>=b) then 
 		write(b%3);
 	endif;
-	d=10;	 	
+	d=True;	 	
 	f=True;
 	e=False;
 

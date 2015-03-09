@@ -32,7 +32,8 @@ id [a-zA-Z][a-zA-Z0-9]*
 "decl"			{return DECL;}
 "enddecl"		{return ENDDECL;}
 "bool"			{return GBOOL;}
-"Integer"		{return GINT;}	
+"Integer"		{return GINT;}
+"else"			{return ELSE;}	
 
 "True"			{return TRUE;}
 "False"			{return FALSE;}

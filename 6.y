@@ -41,7 +41,7 @@
 %token <val> INT
 %token <val> WRITE 
 %token <val> READ
-%token <val> IF THEN ENDIF
+%token <val> IF THEN ELSE ENDIF
 %token <val> WHILE DO ENDWHILE
 %token <val> EQEQ
 %token <val> INTEGER
@@ -88,7 +88,9 @@ Program: GDefblock  Mainblock	{
 										//	$$=makenode($2,NULL,_Program,0,DUMMY);
 										//evaltree($2,-1);
 										fp= fopen("outfile.txt","a");
+										int foo = fprintf(fp,"START\n");
 										CodeGen($2);
+										foo = fprintf(fp,"HALT");
 										int z= fclose(fp);
 										print_table();
 										exit(1);
@@ -133,7 +135,8 @@ Stmt : WRITE '(' Expr ')' ';'
 	
 	| IF '(' Relexp ')' THEN StmtList ENDIF ';'
 
-	{$$=makenode($3,$6,IF,0,DUMMY);if(!type_check($$,1)==1){ getline();TypeFlag = 0;}}
+	{$$=makenode($3,$6,IF,0,DUMMY);
+		if(!type_check($$,1)==1){ getline();TypeFlag = 0;}}
 
 
 	| WHILE '(' Relexp ')' DO StmtList ENDWHILE ';'
@@ -329,18 +332,30 @@ int type_check(struct node* nd,int i){
 	//if conditional------------------------------------------------------
 	else if(nd->flag == IF){	
 		
-		if(type_check(nd->left,1)==1) return 1; //okay
+		if(type_check(nd->left,1)==1){ return 1;} //okay
 		else{
 			//error msg
 			//printf("Expected bool but found int in  if condition\n");
 			return 0;							//not okay
 		}
 	}
+
+	else if(nd->flag == _StmtList) {
+		type_check(nd->left,-1);
+		type_check(nd->right,-1);
+
+	}
+	else if(nd->flag == THEN){
+			type_check(nd->right->left,-1);
+			type_check(nd->right->right,-1);
+	 }
 	
+
+	//ADD THE TYPR_CHECK FOR STMTLIST IN ELSE PART OF IF AND SO PART OF WHILE
 	//while------------------------------------------------------------
 	else if(nd->flag == WHILE){
 
-		if(type_check(nd->left,1)==1) return 1;
+		if(type_check(nd->left,1)==1 ) return 1;
 		else {
 			//error msg
 			//printf("Expected bool but found int in  while condition\n");
@@ -353,6 +368,9 @@ int type_check(struct node* nd,int i){
 
 //CODE GENERATION PART=================================================================
 
+int regStack[8];
+//for label generation
+int Label=0;
 
 //free reg after completion of its requirement
 int RegNo = -1;	//range 0-7
@@ -382,7 +400,15 @@ void evalDecl(struct node *nd,int i){	//i for type filling in table
 	}
 }
 
-
+void printRegStack(){
+	printf("regStack : ");
+	int i;
+	for( i=0;i<8;i++){
+		if(regStack[i]==0 && i >0) break;
+		printf("%d ",regStack[i]);
+	}
+	printf("\n");
+}
 
 int getLoc(char * varname){
 
@@ -397,6 +423,14 @@ int getReg(){
 //Suggestion : Add error msg if RegNo exceeds 7
 	
 	RegNo++;
+	if(RegNo >7) {
+		printf("Exeeded register usage\n");
+		return;
+	}
+
+	regStack[RegNo] =RegNo;
+
+	printRegStack(); 
 
 	int r = RegNo;
 	
@@ -405,11 +439,15 @@ int getReg(){
 
 void freeReg(int r){	
 //if reg r at top of reg stack the remove else return error
-
-	//if(r==RegNo)
-	RegNo--;
-
-}
+	if(r==0) {printRegStack();return;}
+	if(r==RegNo)
+	{RegNo--;
+		regStack[RegNo+1]=0;
+		printRegStack();}
+	else{
+		printf("cannot happen %d\n",r);
+	}
+}	
 
 int getLocArray(struct node * nd){
 	
@@ -430,7 +468,33 @@ int getLocArray(struct node * nd){
 
 }
 
-//generates machine code for SIM
+//HELPER FUNCTIONS for  CODEGEN function===============
+int op(struct node* nd , int flag){
+	int r1 = CodeGen(nd->left);	//increment for r1 will be done in rec part
+					
+	int r2 = CodeGen(nd->right);
+
+	switch(flag){
+		case 1:{int foo =  fprintf(fp,"ADD R%d,R%d\n",r1,r2);break;}
+		case 2:{int foo =  fprintf(fp,"SUB R%d,R%d\n",r1,r2);break;}
+		case 3:{int foo =  fprintf(fp,"MUL R%d,R%d\n",r1,r2);break;}
+		case 4:{int foo =  fprintf(fp,"DIV R%d,R%d\n",r1,r2);break;}
+
+		case 5:{int foo =  fprintf(fp,"LT R%d,R%d\n",r1,r2);break;}
+		case 6:{int foo =  fprintf(fp,"GT R%d,R%d\n",r1,r2);break;}
+		case 7:{int foo =  fprintf(fp,"EQEQ R%d,R%d\n",r1,r2);break;}
+		case 8:{int foo =  fprintf(fp,"LE R%d,R%d\n",r1,r2);break;}
+		case 9:{int foo =  fprintf(fp,"GE R%d,R%d\n",r1,r2);break;}
+		case 10:{int foo =  fprintf(fp,"NE R%d,R%d\n",r1,r2);break;}
+	}
+
+	freeReg(r2);
+
+	return r1;
+}
+
+
+//generates machine code for SIM======================
 //returns regno to be used at an instance
 int CodeGen(struct node *nd){
 	if(nd==NULL) return -1;
@@ -466,20 +530,21 @@ int CodeGen(struct node *nd){
 					
 					break;}
 		
-		case '+' :	
-					
-					{int r1 = CodeGen(nd->left);	//increment for r1 will be done in rec part
-					
-					int r2 = CodeGen(nd->right);
+		case _StmtList:{CodeGen(nd->left);CodeGen(nd->right);break;}
 
-					int foo =  fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+		case '+' :	{int reg = op(nd,1); return reg;break;}
+		case '-' :	{int reg = op(nd,2); return reg;break;}
+		case '*' :	{int reg = op(nd,3); return reg;break;}
+		case '/' :	{int reg = op(nd,4); return reg;break;}
+		case '<' :	{int reg = op(nd,5); return reg;break;}
+		case '>' :	{int reg = op(nd,6); return reg;break;}
+		case EQEQ :	{int reg = op(nd,7); return reg;break;}
+		case  LE :	{int reg = op(nd,8); return reg;break;}
+		case  GE :	{int reg = op(nd,9); return reg;break;}
+		case  NE :	{int reg = op(nd,10); return reg;break;}
 
-					freeReg(r2);
 
-					return r1;	
-
-					break;}
-
+		
 		case '=' :	//one reg for returning remaining canbe disposed off
 					{int r = CodeGen(nd->right);				//right part of =
 
@@ -509,44 +574,103 @@ int CodeGen(struct node *nd){
 					
 					break;}
 
-		case _StmtList:{CodeGen(nd->left);CodeGen(nd->right);break;}
+		
 
 		case WRITE : //printing out of register
-					{if(nd->left->flag == ID){
-						
-						int loc = getLoc(nd->left->varname);
-						
-						int r = getReg();
+					{
+						int  r = CodeGen(nd->left);
 
-						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+						//printf("sam is here\n");
 
-						foo = fprintf(fp,"OUT R%d\n",r);
+						fprintf(fp,"OUT R%d\n",r);
 
 						freeReg(r);
 
 						return -1;
 
+						break;}
 
-					}
-					else if(nd->left->flag == ARRAY){
+		case READ :	{//load to register then load to memorand
 
-						int r1 = getLocArray(nd->left);
+					int r =getReg();
+
+					if(nd->left->flag == ID){
+
+						int foo = fprintf(fp,"IN R%d\n",r);
+
+						int loc = getLoc(nd->left->varname);
+
+						//printf("name : %s\n",nd->left->varname);
 						
-						int r = getReg();
-
-						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,r1);
-
-						foo = fprintf(fp,"OUT R%d\n",r);
+						foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
 
 						freeReg(r);
+
+						return -1;
+
+					}
+					else if(nd->left->flag == ARRAY) {
+
+						int foo = fprintf(fp,"IN R%d\n",r);
+
+						int r1 = getLocArray(nd->left);
+
+						foo = fprintf(fp,"MOV [R%d],R%d\n",r1,r);
 
 						freeReg(r1);
 
+						freeReg(r);
+
 						return -1;
 
+					}
+
+					break;}
+
+		case IF:{//currently not having else part
+					int r  = CodeGen(nd->left);
+
+					int l1 = Label;
+					Label++;
+					int foo = fprintf(fp,"JZ R%d,L%d\n",r,l1);
+
+					foo = CodeGen(nd->right);
+
+					foo = fprintf(fp,"L%d :",l1);
+
+					freeReg(r);
+
+					return -1;
+
+					break;
+
+				}
+		case WHILE :{
+						int l1 = Label;
+						Label++;
+
+						int foo = fprintf(fp,"L%d:",l1);						
+
+						int r = CodeGen(nd->left);
+						
+						int l2 = Label;
+						Label++;
+						foo = fprintf(fp,"JZ R%d,L%d\n",r,l2);
+
+						int r1 = CodeGen(nd->right);
+
+						 foo = fprintf(fp,"JMP L%d\n",l1);
+
+						 foo = fprintf(fp,"L%d:",l2);
+
+						 return -1;
+
+						 break;
 
 					}
-					break;}
+
+
+
 
 		//case :
 
@@ -557,9 +681,6 @@ int CodeGen(struct node *nd){
 
 
 }
-
-
-
 
 
 //========================EVAL TREE

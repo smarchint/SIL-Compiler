@@ -6,7 +6,17 @@ enddecl
 begin
 	a=1;
 	write(a);
-	a=a+1;
-	a=a+23;
+	if(1<2) then
+		write(23);
+	endif;
+	i=0;
+	while(i<10)do
+		write(i);
+		i=i+1;
+	endwhile;
+	read(a);
 
+	
 end
+
+
