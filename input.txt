@@ -42,20 +42,20 @@ begin
 		write(1234);
 	endif;
 
-
-	if(!e && f) then
-		write(30000);
-	endif;
-	e=True;
-	f=e;
-	d=False;
 	if(!e || e) then
 		write(30001);
 	endif;
 
+	e=True;
+	f=e;
+	d=False;
+
+	if(!e && f) then
+		write(30000);
+	endif;
 
 
-	d=False		;
+	d=False	;
 	if(!d) then write(2345); endif;
 	endif;
 
@@ -64,3 +64,6 @@ begin
 end
 
 	
+	
+
+		

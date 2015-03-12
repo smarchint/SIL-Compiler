@@ -22,7 +22,7 @@
 	FILE * fp;
 
 	void evalDecl(struct node *nd,int i);
-//		| '(' Relexp ')'	{$$=$2;}
+
 	struct node* t;
 
 %}
@@ -60,7 +60,6 @@
 %type <ptr> Mainblock
 %type <ptr> StmtList
 %type <ptr> Stmt
-%type <ptr> Relexp
 %type <ptr> Expr
 %type <ptr> Var
 %type <ptr> Varlist
@@ -85,9 +84,7 @@ Program: GDefblock  Mainblock	{
 									//print_table();
 									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
 									else{
-										//	$$=makenode($2,NULL,_Program,0,DUMMY);
-										//evaltree($2,-1);
-										fp= fopen("outfile.txt","a");
+										fp= fopen("outfile.txt","w+");
 										int foo = fprintf(fp,"START\n");
 										CodeGen($2);
 										foo = fprintf(fp,"HALT");
@@ -127,30 +124,24 @@ StmtList: Stmt 			{$$=$1;}
 
 Stmt : WRITE '(' Expr ')' ';'
 	
-	{$$=makenode($3,NULL,WRITE,0,DUMMY);if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+	{$$=makenode($3,NULL,WRITE,0,"Write"); if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 	| READ '(' Var ')' ';'
 
-	{$$=makenode($3,NULL,READ,0,DUMMY);if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+	{$$=makenode($3,NULL,READ,0,"Read"); if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 	
-	| IF '(' Relexp ')' THEN StmtList ENDIF ';'
+	| IF '(' Expr ')' THEN StmtList ENDIF ';'
 
-	{$$=makenode($3,$6,IF,0,DUMMY);
-		if(!type_check($$,1)==1){ getline();TypeFlag = 0;}}
+	{$$=makenode($3,$6,IF,0,"If");     if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 
-	| WHILE '(' Relexp ')' DO StmtList ENDWHILE ';'
+	| WHILE '(' Expr ')' DO StmtList ENDWHILE ';'
 	
-	{$$=makenode($3,$6,WHILE,0,DUMMY);if(!type_check($$,1)==1) {getline();TypeFlag = 0;}}
+	{$$=makenode($3,$6,WHILE,0,"While");	if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 	| Var '=' Expr ';'
 
-	{$$=makenode($1,$3,'=',0,DUMMY);if(!type_check($$,1)==1) {getline();TypeFlag = 0;}}
-
-	| Var '=' Relexp ';'
-
-	{$$=makenode($1,$3,'=',0,DUMMY);if(!type_check($$,1)==1) {getline();TypeFlag = 0;}}
-
+	{$$=makenode($1,$3,'=',0,"=");	if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 	; 
 
@@ -161,47 +152,43 @@ Varlist :	Varlist ',' Var  	{$$=makenode($1,$3,_Varlist,0,DUMMY);}
 		
 		;
 
-Relexp  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);	if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);}
 
-		| Expr '>' Expr    	{$$=makenode($1,$3,'>',0,DUMMY);	if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+		| Expr '>' Expr    	{$$=makenode($1,$3,'>',0,DUMMY);}
 
-		| Expr GE Expr   	{$$=makenode($1,$3,GE,0,DUMMY);		if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+		| Expr GE Expr   	{$$=makenode($1,$3,GE,0,DUMMY);	}
 
-		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);		if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);	}
 		
-		| Expr NE Expr   	{$$=makenode($1,$3,NE,0,DUMMY);		if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+		| Expr NE Expr   	{$$=makenode($1,$3,NE,0,DUMMY);	}
 
-		| Expr EQEQ Expr   	{$$=makenode($1,$3,EQEQ,0,DUMMY);	if(!type_check($$,0)==1) {getline();TypeFlag = 0;}}
+		| Expr EQEQ Expr   	{$$=makenode($1,$3,EQEQ,0,DUMMY);}
 
-		| '!' Relexp  		{$$=makenode($2,NULL,NOT,0,DUMMY);	if(!type_check($$,1)==1) {getline();TypeFlag = 0;}}
+		| '!' Expr  		{$$=makenode($2,NULL,NOT,0,DUMMY);}
 
-		| Relexp AND Relexp	{$$=makenode($1,$3,AND,0,DUMMY);	if(!type_check($$,1)==1){getline();TypeFlag = 0;}}
+		| Expr AND Expr	{$$=makenode($1,$3,AND,0,DUMMY);}
 
-		| Relexp OR Relexp	{$$=makenode($1,$3,OR,0,DUMMY);		if(!type_check($$,1)==1) {getline();TypeFlag = 0;}}
+		| Expr OR Expr	{$$=makenode($1,$3,OR,0,DUMMY);}
 
-		| TRUE				{$$=makenode(NULL,NULL,_Truth,TRUE,DUMMY);}
+		| TRUE			{$$=makenode(NULL,NULL,_Truth,TRUE,DUMMY);} 
 
-		| FALSE				{$$=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
+		| FALSE			{$$=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
 
-		| Var 				{$$=$1; }
+		| Expr '+' Expr	{$$=makenode($1,$3,'+',0,DUMMY); }
+
+		| Expr '-' Expr	{$$=makenode($1,$3,'-',0,DUMMY); }
+
+		| Expr '*' Expr	{$$=makenode($1,$3,'*',0,DUMMY); }
+
+		| Expr '/' Expr	{$$=makenode($1,$3,'/',0,DUMMY); }
+
+		| Expr '%' Expr	{$$=makenode($1,$3,_mod,0,DUMMY);}
+
+		| INT 			{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
+
+		| Var 			{$$=$1;}
 
 		;
-
-Expr: Expr '+' Expr	{$$=makenode($1,$3,'+',0,DUMMY); if(!type_check($$,0)==0) {getline();TypeFlag = 0;}}
-
-	| Expr '-' Expr	{$$=makenode($1,$3,'-',0,DUMMY); if(!type_check($$,0)==0) {getline();TypeFlag = 0;}}
-
-	| Expr '*' Expr	{$$=makenode($1,$3,'*',0,DUMMY); if(!type_check($$,0)==0) {getline();TypeFlag = 0;}}
-
-	| Expr '/' Expr	{$$=makenode($1,$3,'/',0,DUMMY); if(!type_check($$,0)==0) {getline();TypeFlag = 0;}}
-
-	| Expr '%' Expr	{$$=makenode($1,$3,_mod,0,DUMMY);if(!type_check($$,0)==0) {getline();TypeFlag = 0;}}
-
-	| INT 			{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
-
-	| Var 			{$$=$1;}
-
-	;
 
 
 Var : ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
@@ -212,147 +199,55 @@ Var : ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 
 
 %%
+//version 3 top down semantic check
+//typecheck3
+
 
 //version 2   typecheck need to be improved
+//1 for bool ;  0 for int int 
+int type_check2(struct node * nd ){
+	if(nd== NULL) return -1;
 
+	switch(nd->flag){
 
-//returns type or (1 for 'okay' and 0 for 'not okay')
-int type_check(struct node* nd,int i){
-	if(nd == NULL) return i;
+		case WRITE:	{int l = type_check2(nd->left);if (l == 0 ) return -1;}
+		case READ : {int l = type_check2(nd->left);return -1;}
 
-	//base case-------------------------
-	if(nd->flag==ID || nd->flag==ARRAY ) {
+		case '='  :	{int l = type_check2(nd->left); int r = type_check2(nd->right);if(l==r) return -1;}
 
-		struct gnode* temp=fetch(nd->varname);
-		if(temp->type == 0)
-		return 0;
-		else return 1;
+		case WHILE: {int l = type_check2(nd->left); if (l == 1) return -1;}
 
-	} 
-	if(nd->flag==INT) {
-		return 0;
-	} 	
+		case IF   :	{int l = type_check2(nd->left);if(l==1) return -1;}
 
-	if(nd->flag==_Truth){
+		case '<'  : 
+		case '>'  : 
+		case EQEQ :
+		case NE   :
+		case LE   :
+		case GE   : {int l = type_check2(nd->left); int r = type_check2(nd->right);
+						if(l==0 && r==0) return 1;}
 
-		return 1;
-	}
+		case '+'  : 
+		case '-'  : 
+		case '*'  :
+		case _mod :
+		case '/'  : {int l = type_check2(nd->left); int r = type_check2(nd->right);
+						if(l==0 && r==0) return 0;}
 
+		case INT  : return 0;
+		case ARRAY : 
+		case ID  : {struct gnode * temp; temp = fetch(nd->varname); return temp->type;}
 
- 	//operators ----------------------------------------
- 	//returns type
-	if(nd->flag=='+'||nd->flag=='-'||nd->flag=='/'||nd->flag=='*'||\
-		nd->flag==_mod ) {
-		
-		//i == 0 : true  since exp has int but no  bools
-		if (type_check(nd->left,0)==0 && type_check(nd->right,0) ==0){
-			return 0;
-		}
-		else{
-			//error msg
-			//printf("Expected int but found bool in operators\n");
-			return 1;
-		}
-		
-	}
+		//suggesion : remove _truth flag to make code simple
+		case _Truth: {if(nd->val == TRUE || nd->val == FALSE) return 1;}
 
-	//comparators--------------------------------------------------(can merge comparator and oiperator cases)
-	//returns type
-	if(nd->flag=='>'||nd->flag=='<'||nd->flag==EQEQ||\
-		nd->flag==NE||nd->flag==LE ||nd->flag==GE){
-
-		//i == 0 : true  since exp has int but no  bools
-		if (type_check(nd->left,0)==0 && type_check(nd->right,0) ==0){
-			return 1;
-		}
-		else{
-			//error msg
-			//printf("Expected int but foiund bool in comparators\n");
-			return 0;
-		}
-	}
-
-	//logical connectives--------------------------------------------
-	//returns type
-	else if(nd->flag==AND ||nd->flag==OR||nd->flag==NOT){
-		
-		//i==1 :
-		if (type_check(nd->left,1)==1 &&  type_check(nd->right,1)==1 ) 
-			return 1;
-		else {
-			//erroe msg
-			//printf("Expected bool but found int  --or -- some found some bool in comparators\n");
-			return 0;
-		}
-	
-	}
-
-
-	//assignment---------------------------------------------------------
-	else if(nd->flag== '='){			//i value not considered in te call
-
-		if((type_check(nd->left,0)==type_check(nd->right,0)) ||\
-			(type_check(nd->left,1)==type_check(nd->right,1))){
-			//printf("Left : %d  Right : %d\n",nd->left->val,nd->right->val);
-			return 1;	//okay
-		}
-		else{	
-			printf("TYPE MISMATCH\n");
-			return 0;	//not okaay
-		}
-	}
-
-	//@Read---------------------------------------------------------------- 
-	//read only int
-	else if(nd->flag==READ){			//i value for read and write
-		
-		struct gnode * temp= fetch(nd->left->varname);
-		
-		//if left has a ijnt
-		if(temp->type==0) {return 1;} 	//okay
-		else {
-			printf("bools cannot be read\n");
-			return 0;
-		}
+		case AND :
+		case OR  :
+		case NOT : {int l = type_check2(nd->left);int r=1; if(nd->right){ r = type_check2(nd->right);} 
+					if(l==1 && r ==1) return 1;}
 
 	}
 
-	//Write----------------------------------------------------------------
-	//write only int
-	else if(nd->flag==WRITE){
-
-		if(type_check(nd->left,i)==0) return 1;	//okay
-		else{
-			//error msg
-			//printf("bools cannot be written\n");
-			return 0;
-		}					//not okay
-	}
-
-	//if conditional------------------------------------------------------
-	else if(nd->flag == IF){	
-		
-		if(type_check(nd->left,1)==1){ return 1;} //okay
-		else{
-			//error msg
-			//printf("Expected bool but found int in  if condition\n");
-			return 0;							//not okay
-		}
-	}
-	
-
-	//ADD THE TYPR_CHECK FOR STMTLIST IN ELSE PART OF IF AND SO PART OF WHILE
-	//while------------------------------------------------------------
-	else if(nd->flag == WHILE){
-
-		if(type_check(nd->left,1)==1 ) return 1;
-		else {
-			//error msg
-			//printf("Expected bool but found int in  while condition\n");
-			return 0;
-		}
-	}
-	//end of function : type_check
 }
 
 
@@ -370,6 +265,8 @@ int RegNo = -1;	//range 0-7
 //use and increase to size
 int LocNo = 0;	//range 0-25
 
+
+//allcating space in memory of target machine
 //suggestion : Add error msg for redeclarations;
 void evalDecl(struct node *nd,int i){	//i for type filling in table
 	if(nd == NULL ) return;
@@ -431,7 +328,7 @@ int getReg(){
 	return r;
 }
 
-void freeReg(int r){	
+void freeReg(int r,struct node * nd){	
 //if reg r at top of reg stack the remove else return error
 	if(r==0) {printRegStack();return;}
 	if(r==RegNo)
@@ -439,7 +336,10 @@ void freeReg(int r){
 		regStack[RegNo+1]=0;
 		printRegStack();}
 	else{
-		printf("cannot happen %d\n",r);
+		printf("%d cannot happen reg(%d)  at %d ",lineno,r,nd->flag);
+		if(nd->left) printf(": l(%d)  ",nd->left->flag);
+		if(nd->right) printf(": r(%d) ",nd->right->flag);
+		printf("\n");
 	}
 }	
 
@@ -455,7 +355,7 @@ int getLocArray(struct node * nd){
 
 	foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);//add r + r1	
 
-	freeReg(r1);
+	freeReg(r1 , nd);
 
 	return r; //contains final location of array element
 
@@ -480,9 +380,10 @@ int op(struct node* nd , int flag){
 		case 8:{int foo =  fprintf(fp,"LE R%d,R%d\n",r1,r2);break;}
 		case 9:{int foo =  fprintf(fp,"GE R%d,R%d\n",r1,r2);break;}
 		case 10:{int foo =  fprintf(fp,"NE R%d,R%d\n",r1,r2);break;}
+		case 11:{int foo =  fprintf(fp,"MOD R%d,R%d\n",r1,r2);break;}
 	}
 
-	freeReg(r2);
+	freeReg(r2 , nd);
 
 	return r1;
 }
@@ -494,6 +395,14 @@ int CodeGen(struct node *nd){
 	if(nd==NULL) return -1;
 
 	switch(nd->flag){
+
+		case _Truth : 
+					{ int value = 0 ; if(nd->val == TRUE) value =1;
+					  int r = getReg();
+					  int foo = fprintf(fp,"MOV R%d,%d\n",r,value);
+					  return r; 
+
+					}
 		case INT:	{int r = getReg();
 
 					int foo = fprintf(fp,"MOV R%d,%d\n",r,nd->val);
@@ -518,7 +427,7 @@ int CodeGen(struct node *nd){
 
 					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);//mov r [r1] 	
 
-					freeReg(r1);
+					freeReg(r1 , nd);
 
 					return r;
 					
@@ -536,6 +445,7 @@ int CodeGen(struct node *nd){
 		case  LE :	{int reg = op(nd,8); return reg;break;}
 		case  GE :	{int reg = op(nd,9); return reg;break;}
 		case  NE :	{int reg = op(nd,10); return reg;break;}
+		case _mod :	{int reg = op(nd,11); return reg;break;}
 
 		
 		case '=' :	//one reg for returning remaining canbe disposed off
@@ -546,7 +456,7 @@ int CodeGen(struct node *nd){
 
 						int foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
 						
-						freeReg(r);
+						freeReg(r,nd);
 
 						return -1;
 					}
@@ -557,9 +467,9 @@ int CodeGen(struct node *nd){
 
 						int foo =  fprintf(fp,"MOV [R%d],R%d\n",r1,r);
 
-						freeReg(r1);
+						freeReg(r1,nd);
 
-						freeReg(r);
+						freeReg(r,nd);
 
 						return -1;						
 
@@ -577,7 +487,7 @@ int CodeGen(struct node *nd){
 
 						fprintf(fp,"OUT R%d\n",r);
 
-						freeReg(r);
+						freeReg(r,nd);
 
 						return -1;
 
@@ -597,7 +507,7 @@ int CodeGen(struct node *nd){
 						
 						foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
 
-						freeReg(r);
+						freeReg(r,nd);
 
 						return -1;
 
@@ -610,9 +520,9 @@ int CodeGen(struct node *nd){
 
 						foo = fprintf(fp,"MOV [R%d],R%d\n",r1,r);
 
-						freeReg(r1);
+						freeReg(r1,nd);
 
-						freeReg(r);
+						freeReg(r,nd);
 
 						return -1;
 
@@ -629,9 +539,9 @@ int CodeGen(struct node *nd){
 
 					foo = CodeGen(nd->right);
 
-					foo = fprintf(fp,"L%d :",l1);
+					foo = fprintf(fp,"L%d: ",l1);
 
-					freeReg(r);
+					freeReg(r,nd);
 
 					return -1;
 
@@ -647,7 +557,7 @@ int CodeGen(struct node *nd){
 					
 					int foo = fprintf(fp,"MUL R%d,R%d\n",r1,r2);
 
-					freeReg(r2);
+					freeReg(r2,nd);
 
 					return r1;
 
@@ -670,9 +580,9 @@ int CodeGen(struct node *nd){
 
 					foo = fprintf(fp,"SUB R%d,R%d\n",r1,r3);
 
-					freeReg(r3);
+					freeReg(r3,nd);
 
-					freeReg(r2);
+					freeReg(r2,nd);
 
 					return r1;
 
@@ -681,16 +591,17 @@ int CodeGen(struct node *nd){
 					}
 
 		case NOT :{
-					int r1 = CodeGen(nd->left);
-					
-					//YET to IMPLEMENT
+					int r = CodeGen(nd->left);
 
-					int r2 = getReg();
+					int r1 = getReg();
 
-					
-					
+					int foo = fprintf(fp,"MOV R%d,1\n",r1);
 
+					foo = fprintf(fp,"LT R%d,R%d\n",r,r1);
 
+					freeReg(r1,nd);
+
+					return r;
 
 					break;
 
@@ -714,21 +625,13 @@ int CodeGen(struct node *nd){
 
 						 foo = fprintf(fp,"L%d:",l2);
 
-						 freeReg(r);
+						 freeReg(r,nd);
 
 						 return -1;
 
 						 break;
 
 					}
-
-
-
-
-		//case :
-
-
-
 	}
 
 
