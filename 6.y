@@ -56,15 +56,15 @@
 
 
 
-%type <ptr> Program 
+%type <ptr> Program  
 %type <ptr> Mainblock
 %type <ptr> StmtList
 %type <ptr> Stmt
 %type <ptr> Expr
-%type <ptr> Var
-%type <ptr> Varlist
+%type <ptr> GId Var
+%type <ptr> GIdList
 %type <ptr> GDecl
-%type <ptr> GDefList
+%type <ptr> GDefList 
 %type <ptr> GDefblock
 
 
@@ -104,23 +104,39 @@ GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
 
 		;
 
-GDecl   : GINT Varlist ';'	{$$=makenode($2,NULL,GINT,0,DUMMY); }		//type int
+GDecl   : GINT GIdList ';'	{$$=makenode($2,NULL,GINT,0,DUMMY); }		//type int
 								//evaltree($2,0);}
 		
-		| GBOOL Varlist ';' {$$=makenode($2,NULL,GBOOL,0,DUMMY); }		//type bool
+		| GBOOL GIdList ';' {$$=makenode($2,NULL,GBOOL,0,DUMMY); }		//type bool
 								//evaltree($2,1);}
 		
 		;
 
-Mainblock : SILBEGIN StmtList END  	{$$ = $2;}
+GIdList :	GIdList ',' GId  	{$$=makenode($1,$3,_Varlist,0,DUMMY);}
+
+		| GId 					{$$=makenode(NULL,$1,_Varlist,0,DUMMY);}
+
+		
+		;
+
+GId : ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
+
+	| ID '[' Expr ']'	{$$=makenode($3,NULL,ARRAY,0,$1);}
+
+	;
+
+
+Mainblock : MAIN  '{'  SILBEGIN StmtList END  '}'	{$$ = $4;}
 
 		;
+
 
 StmtList: Stmt 			{$$=$1;}
 
 	| StmtList Stmt 	{$$=makenode($1,$2,_StmtList,0,DUMMY);}
 
 	;
+	
 
 Stmt : WRITE '(' Expr ')' ';'
 	
@@ -147,14 +163,9 @@ Stmt : WRITE '(' Expr ')' ';'
 
 	{$$=makenode($1,$3,'=',0,"=");	if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
-	; 
+	;
 
-Varlist :	Varlist ',' Var  	{$$=makenode($1,$3,_Varlist,0,DUMMY);}
 
-		| Var 					{$$=makenode(NULL,$1,_Varlist,0,DUMMY);}
-
-		
-		;
 
 Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);}
 
@@ -190,17 +201,15 @@ Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);}
 
 		| INT 			{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
 
-		| Var 			{$$=$1;}
+		| Var
 
 		;
-
 
 Var : ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 
 	| ID '[' Expr ']'	{$$=makenode($3,NULL,ARRAY,0,$1);}
 
 	;
-
 
 %%
 //version 3 top down semantic check

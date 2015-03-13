@@ -24,9 +24,7 @@ id [a-zA-Z][a-zA-Z0-9]*
 "then"  		{return THEN;}
 "endif"  		{return ENDIF;}
 "endwhile"  	{return ENDWHILE;}
-"int"			{return INTD;}
-"main"			{return MAIN;}
-"nteger" 		{return INTEGER;}
+"main()"		{return MAIN;}
 "begin"     	{return SILBEGIN;}
 "end" 			{return END;}
 "decl"			{return DECL;}
@@ -52,7 +50,7 @@ id [a-zA-Z][a-zA-Z0-9]*
                     yylval.id=p;
 					return ID;
 				}
-[;,()[\]]		{return yytext[0];}
+[;,()[\]{}]		{return yytext[0];}
 "exit();"		{return EXIT;}
 
 .  			;
