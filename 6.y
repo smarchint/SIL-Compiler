@@ -134,6 +134,10 @@ Stmt : WRITE '(' Expr ')' ';'
 
 	{$$=makenode($3,$6,IF,0,"If");     if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
+	| IF '(' Expr ')' THEN StmtList ELSE StmtList ENDIF ';'
+
+	{ $$=makenode($3,makenode($6,$8,ELSE,0,"Else"),IF,0,"If");  if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
+
 
 	| WHILE '(' Expr ')' DO StmtList ENDWHILE ';'
 	
@@ -376,7 +380,7 @@ int op(struct node* nd , int flag){
 
 		case 5:{int foo =  fprintf(fp,"LT R%d,R%d\n",r1,r2);break;}
 		case 6:{int foo =  fprintf(fp,"GT R%d,R%d\n",r1,r2);break;}
-		case 7:{int foo =  fprintf(fp,"EQEQ R%d,R%d\n",r1,r2);break;}
+		case 7:{int foo =  fprintf(fp,"EQ R%d,R%d\n",r1,r2);break;}
 		case 8:{int foo =  fprintf(fp,"LE R%d,R%d\n",r1,r2);break;}
 		case 9:{int foo =  fprintf(fp,"GE R%d,R%d\n",r1,r2);break;}
 		case 10:{int foo =  fprintf(fp,"NE R%d,R%d\n",r1,r2);break;}
@@ -537,16 +541,17 @@ int CodeGen(struct node *nd){
 					Label++;
 					int foo = fprintf(fp,"JZ R%d,L%d\n",r,l1);
 
-					foo = CodeGen(nd->right);
+					if(nd->right->flag == ELSE)	foo = CodeGen(nd->right->left);
 
+					else foo = CodeGen(nd->right);
+					
 					foo = fprintf(fp,"L%d: ",l1);
+
+					if(nd->right->flag == ELSE)	foo = CodeGen(nd->right->right);
 
 					freeReg(r,nd);
 
 					return -1;
-
-					break;
-
 				}
 
 

@@ -14,9 +14,15 @@ begin
 		write(i);
 		i=i+1;
 	endwhile;
-	read(a);
 
-	
+	b=3;
+	if(b == 2) then
+		write(122);
+	else 
+		if(b==3) then
+			write(133);
+		endif;
+	endif;
 end
 
 
