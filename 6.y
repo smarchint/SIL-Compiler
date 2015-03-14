@@ -30,7 +30,7 @@
 
 
 
-	struct node* t;
+	//struct node* t;
 
 %}
 
@@ -65,7 +65,7 @@
 
 %type <ptr> Program  Mainblock
 %type <ptr> StmtList  Stmt Expr
-%type <ptr>  Var ArgList Arg List Id 
+%type <ptr>  Var ArgList Arg List 
  
 %type <ptr> GDefblock GDefList GIdList GDecl GId
 
@@ -125,21 +125,20 @@ GId : ID 					{$$=makenode(NULL,NULL,ID,0,$1);}
 
 	| ID '(' ArgList ')'   	{$$ = makenode($3,NULL,FUNC,0,$1);}
 
+	| ID '(' ')'			{$$ = makenode(NULL,NULL,FUNC,0,$1);}
+
 	;
 
 ArgList : ArgList ';' Arg 	{$$ = makenode($1,$3,_ArgList,0,DUMMY);}
-		| Arg 				{$$ = $1;}
+		| Arg 				{$$ = makenode(NULL,$1,_ArgList,0,DUMMY);}
 		;
 
-Arg : GINT List 			{$$ = $2;}
-	| GBOOL List 			{$$ = $2;}
+Arg : GINT List 			{$$ = makenode($2,NULL,GINT,0,"arg");}
+	| GBOOL List 			{$$ = makenode($2,NULL,GBOOL,0,"arg");}
 	;
 
-List : List ',' Id 			{$$ = makenode($1,$3,_List,0,DUMMY);}
-	| Id 					{$$ = $1;}
-	;
-Id : ID 					{$$ = makenode(NULL,NULL,ID,0,$1);}
-	| ID '[' Expr ']' 		{$$ = makenode($3,NULL,ID,0,$1);}
+List : List ',' ID			{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_List,0,DUMMY);}
+	| ID 					{$$ = makenode(NULL,makenode(NULL,NULL,ID,0,$1),_List,0,DUMMY);}
 	;
 
 
@@ -293,6 +292,33 @@ int RegNo = -1;	//range 0-7
 int LocNo = 0;	//range 0-25
 
 
+void install_args(struct gnode *t,struct node *nd,int i){
+	if(nd == NULL) return;
+	switch(nd->flag){
+		case _ArgList: {install_args(t,nd->left,i);install_args(t,nd->right,i);break;}
+		case GINT : {install_args(t,nd->left,0);break;}
+		case GBOOL: {install_args(t,nd->left,1);break;}
+		case _List :{install_args(t,nd->left,i);
+						struct gnode *temp;
+						temp = (struct gnode *)malloc(sizeof(struct gnode ));
+						temp->name = nd->right->varname;
+						temp->type = i;
+						temp->args = NULL;
+						
+						//importance here : 
+						//get gnode pointer and then 
+						//upgate it's args pointer
+						temp->next = t->args;
+						t->args= temp;
+						break;
+					}
+
+	}
+	return;
+
+}
+
+
 //allcating space in memory of target machine
 //suggestion : Add error msg for redeclarations;
 void evalDecl(struct node *nd,int i){	//i for type filling in table
@@ -312,7 +338,24 @@ void evalDecl(struct node *nd,int i){	//i for type filling in table
 							LocNo += size;							
 
 						}
+						else if(nd->right->flag == FUNC ){
+							struct gnode * temp;
+							temp =(struct gnode *) malloc(sizeof(struct gnode));
+
+							temp->name = nd->right->varname;
+							int _i;
+							if(i==0) _i=3;
+							else if(i == 1) _i=4;
+							temp->type = _i;
+							temp->args = NULL;
+
+							temp->next =head;
+							head = temp;
+
+							install_args(temp,nd->right->left,i);							
+						}
 						break;
+
 	}
 }
 

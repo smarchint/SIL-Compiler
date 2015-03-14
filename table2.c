@@ -10,6 +10,7 @@
 		int size; 	//1 for int and n for array
 		int bind; 	//pointer to the entity
 		struct gnode * next;	//pointer in linked list
+		struct gnode * args;
 } ;
 
 struct gnode* head=NULL;
@@ -59,7 +60,8 @@ void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
 		temp->size=_size;
 		temp->type=_type;
 		temp->bind=_loc;
-		
+		temp->args = NULL;
+
 		temp->next=head;
 		head=temp;
 		
@@ -107,16 +109,29 @@ void print_table(){
 	temp=head;
 	int count=0;
 	while(temp){
-		if(temp->size>1){
+		if(temp->type == 3 || temp->type == 4){
 			printf("(%d) %s(%d) : ",count,temp->name,temp->type);
-			int place=0;
-			for(place=0;place< temp->size; place++){
-				printf("%d ", temp->bind+place );
+			struct gnode * t = temp->args;
+			while(t) {
+				printf("%s (%d) ," ,t->name,t->type);
+				t=t->next;
 			}
 			printf("\n");
-		}	
+
+		}
 		else{
-			printf("(%d) %s(%d): %d\n",count,temp->name,temp->type,temp->bind);
+			if(temp->size>1){
+				printf("(%d) %s(%d) : ",count,temp->name,temp->type);
+				int place=0;
+				for(place=0;place< temp->size; place++){
+					printf("%d ", temp->bind+place );
+				}
+				printf("\n");
+			}	
+			else{
+				printf("(%d) %s(%d): %d\n",count,temp->name,temp->type,temp->bind);
+			}
+			
 		}
 		temp=temp->next;
 		count++;

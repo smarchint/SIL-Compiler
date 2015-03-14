@@ -1,8 +1,10 @@
 decl
-	Integer a,b,c[5],i;	
-	bool def,ght;
+	Integer a,b,c[5],i,foo(Integer ij,kl,mn);	
+	bool def,ght,bar();
 enddecl
 
+
+main(){
 begin
 	a=1;
 	write(a);
@@ -24,5 +26,5 @@ begin
 		endif;
 	endif;
 end
-
+}
 
