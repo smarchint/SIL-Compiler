@@ -18,6 +18,7 @@
 	#define _ArgList 36
 	#define _Arg 37
 	#define _GIdList 38
+	#define _List 39
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
@@ -64,7 +65,7 @@
 
 %type <ptr> Program  Mainblock
 %type <ptr> StmtList  Stmt Expr
-%type <ptr>  Var
+%type <ptr>  Var ArgList Arg List Id 
  
 %type <ptr> GDefblock GDefList GIdList GDecl GId
 
@@ -122,8 +123,24 @@ GId : ID 					{$$=makenode(NULL,NULL,ID,0,$1);}
 
 	| ID '[' Expr ']'		{$$=makenode($3,NULL,ARRAY,0,$1);}
 
+	| ID '(' ArgList ')'   	{$$ = makenode($3,NULL,FUNC,0,$1);}
+
 	;
 
+ArgList : ArgList ';' Arg 	{$$ = makenode($1,$3,_ArgList,0,DUMMY);}
+		| Arg 				{$$ = $1;}
+		;
+
+Arg : GINT List 			{$$ = $2;}
+	| GBOOL List 			{$$ = $2;}
+	;
+
+List : List ',' Id 			{$$ = makenode($1,$3,_List,0,DUMMY);}
+	| Id 					{$$ = $1;}
+	;
+Id : ID 					{$$ = makenode(NULL,NULL,ID,0,$1);}
+	| ID '[' Expr ']' 		{$$ = makenode($3,NULL,ID,0,$1);}
+	;
 
 
 Mainblock : MAIN  '{'  SILBEGIN StmtList END  '}'	{$$ = $4;}
@@ -245,7 +262,7 @@ int type_check2(struct node * nd ){
 
 		case INT  : return 0;
 		case ARRAY : 
-		case ID  : {struct gnode * temp; temp = fetch(nd->varname); printf("%d\n",temp); 
+		case ID  : {struct gnode * temp; temp = fetch(nd->varname); //printf("%d\n",temp); 
 							  return temp->type;}	
 
 		//suggesion : remove _truth flag to make code simple
