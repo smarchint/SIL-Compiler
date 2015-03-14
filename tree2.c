@@ -11,6 +11,7 @@ struct node{
 		char *varname;		
 		struct node *right;	
 		struct node *left;
+		struct node * parent;
 };
 
 void yyerror(char *s) {
@@ -22,6 +23,10 @@ struct node* makenode(struct node* lt,struct node* rt,int flag,int value,char* v
 	//printf("new htree node adddr : %d\n",head1);
 	head1->left=lt;
 	head1->right=rt;
+	if(lt && rt ){
+	lt->parent = head1;
+	rt->parent = head1;
+	}
 	//head1->type=_type;  	//for (0)int or (1)bool
 	head1->val=value;
 	head1->flag=flag;

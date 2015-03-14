@@ -14,6 +14,10 @@
 	#define _Truth 20
 	#define _mod 25
 	#define ARRAY 34
+	#define FUNC 35
+	#define _ArgList 36
+	#define _Arg 37
+	#define _GIdList 38
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
@@ -22,6 +26,8 @@
 	FILE * fp;
 
 	void evalDecl(struct node *nd,int i);
+
+
 
 	struct node* t;
 
@@ -56,16 +62,11 @@
 
 
 
-%type <ptr> Program  
-%type <ptr> Mainblock
-%type <ptr> StmtList
-%type <ptr> Stmt
-%type <ptr> Expr
-%type <ptr> GId Var
-%type <ptr> GIdList
-%type <ptr> GDecl
-%type <ptr> GDefList 
-%type <ptr> GDefblock
+%type <ptr> Program  Mainblock
+%type <ptr> StmtList  Stmt Expr
+%type <ptr>  Var
+ 
+%type <ptr> GDefblock GDefList GIdList GDecl GId
 
 
 %left OR
@@ -95,7 +96,7 @@ Program: GDefblock  Mainblock	{
 								}
 	;
 
-GDefblock : DECL GDefList ENDDECL	{$$=$2; evalDecl($2,-1);}
+GDefblock : DECL GDefList ENDDECL	{$$=$2;}
 		;
 
 GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
@@ -104,26 +105,25 @@ GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
 
 		;
 
-GDecl   : GINT GIdList ';'	{$$=makenode($2,NULL,GINT,0,DUMMY); }		//type int
-								//evaltree($2,0);}
-		
-		| GBOOL GIdList ';' {$$=makenode($2,NULL,GBOOL,0,DUMMY); }		//type bool
-								//evaltree($2,1);}
+GDecl   : GINT GIdList ';'	{$$=$2; evalDecl($2,0); print_table();}
+
+		| GBOOL GIdList ';'	{$$=$2; evalDecl($2,1); print_table();}
 		
 		;
 
-GIdList :	GIdList ',' GId  	{$$=makenode($1,$3,_Varlist,0,DUMMY);}
+GIdList :	GIdList ',' GId  	{$$=makenode($1,$3,_GIdList,0,DUMMY);}
 
-		| GId 					{$$=makenode(NULL,$1,_Varlist,0,DUMMY);}
+		| GId 					{$$=makenode(NULL,$1,_GIdList,0,DUMMY);}
 
-		
 		;
 
-GId : ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 
-	| ID '[' Expr ']'	{$$=makenode($3,NULL,ARRAY,0,$1);}
+GId : ID 					{$$=makenode(NULL,NULL,ID,0,$1);}
+
+	| ID '[' Expr ']'		{$$=makenode($3,NULL,ARRAY,0,$1);}
 
 	;
+
 
 
 Mainblock : MAIN  '{'  SILBEGIN StmtList END  '}'	{$$ = $4;}
@@ -136,7 +136,7 @@ StmtList: Stmt 			{$$=$1;}
 	| StmtList Stmt 	{$$=makenode($1,$2,_StmtList,0,DUMMY);}
 
 	;
-	
+
 
 Stmt : WRITE '(' Expr ')' ';'
 	
@@ -201,21 +201,17 @@ Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);}
 
 		| INT 			{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
 
-		| Var
+		| Var   		{$$ = $1;}
 
 		;
 
-Var : ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
+Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 
-	| ID '[' Expr ']'	{$$=makenode($3,NULL,ARRAY,0,$1);}
+		| ID '[' Expr ']'	{$$=makenode($3,NULL,ARRAY,0,$1);}
 
 	;
 
 %%
-//version 3 top down semantic check
-//typecheck3
-
-
 //version 2   typecheck need to be improved
 //1 for bool ;  0 for int int 
 int type_check2(struct node * nd ){
@@ -223,14 +219,14 @@ int type_check2(struct node * nd ){
 
 	switch(nd->flag){
 
-		case WRITE:	{int l = type_check2(nd->left);if (l == 0 ) return -1;}
-		case READ : {int l = type_check2(nd->left);return -1;}
+		case WRITE:	{int l = type_check2(nd->left);if (l == 0 ) return -1;return -2;}
+		case READ : {int l = type_check2(nd->left);return -1;return -2;}
 
-		case '='  :	{int l = type_check2(nd->left); int r = type_check2(nd->right);if(l==r) return -1;}
+		case '='  :	{int l = type_check2(nd->left); int r = type_check2(nd->right);if(l==r) return -1;return -2;}
 
-		case WHILE: {int l = type_check2(nd->left); if (l == 1) return -1;}
+		case WHILE: {int l = type_check2(nd->left); if (l == 1) return -1;return -2;}
 
-		case IF   :	{int l = type_check2(nd->left);if(l==1) return -1;}
+		case IF   :	{int l = type_check2(nd->left);if(l==1) return -1;return -2;}
 
 		case '<'  : 
 		case '>'  : 
@@ -238,26 +234,27 @@ int type_check2(struct node * nd ){
 		case NE   :
 		case LE   :
 		case GE   : {int l = type_check2(nd->left); int r = type_check2(nd->right);
-						if(l==0 && r==0) return 1;}
+						if(l==0 && r==0) return 1;return -2;}
 
 		case '+'  : 
 		case '-'  : 
 		case '*'  :
 		case _mod :
 		case '/'  : {int l = type_check2(nd->left); int r = type_check2(nd->right);
-						if(l==0 && r==0) return 0;}
+						if(l==0 && r==0) return 0;return -2;}
 
 		case INT  : return 0;
 		case ARRAY : 
-		case ID  : {struct gnode * temp; temp = fetch(nd->varname); return temp->type;}
+		case ID  : {struct gnode * temp; temp = fetch(nd->varname); printf("%d\n",temp); 
+							  return temp->type;}	
 
 		//suggesion : remove _truth flag to make code simple
-		case _Truth: {if(nd->val == TRUE || nd->val == FALSE) return 1;}
+		case _Truth: {if(nd->val == TRUE || nd->val == 	FALSE) return 1;return -2;}
 
 		case AND :
 		case OR  :
 		case NOT : {int l = type_check2(nd->left);int r=1; if(nd->right){ r = type_check2(nd->right);} 
-					if(l==1 && r ==1) return 1;}
+					if(l==1 && r ==1) return 1; return -2;}
 
 	}
 
@@ -284,10 +281,10 @@ int LocNo = 0;	//range 0-25
 void evalDecl(struct node *nd,int i){	//i for type filling in table
 	if(nd == NULL ) return;
 	switch(nd->flag){
-		case _GDefList: evalDecl(nd->left,i);evalDecl(nd->right,i); break;
-		case GINT: 		evalDecl(nd->left,0); break;
-		case GBOOL: 	evalDecl(nd->left,1); break;
-		case _Varlist: 	evalDecl(nd->left,i);
+		//case _GDefList: evalDecl(nd->left,i);evalDecl(nd->right,i); break;
+		//case GINT: 		evalDecl(nd->left,0); break;
+		//case GBOOL: 	evalDecl(nd->left,1); break;
+		case _GIdList: 	evalDecl(nd->left,i);
 						if(nd->right->flag==ID) {
 							gentry(nd->right->varname,i,1,LocNo);
 							LocNo++;
