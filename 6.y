@@ -28,10 +28,6 @@
 
 	void evalDecl(struct node *nd,int i);
 
-
-
-	//struct node* t;
-
 %}
 
 
@@ -66,7 +62,8 @@
 %type <ptr> Program  Mainblock
 %type <ptr> StmtList  Stmt Expr
 %type <ptr>  Var ArgList Arg List 
- 
+%type <ptr> FdefList Fdef
+%type <ptr> LDefblock LDefList LDecl  LIdList
 %type <ptr> GDefblock GDefList GIdList GDecl GId
 
 
@@ -82,13 +79,13 @@
 
 %%
 
-Program: GDefblock  Mainblock	{	
+Program: GDefblock FdefList Mainblock	{	
 									//print_table();
 									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
 									else{
 										fp= fopen("outfile.txt","w+");
 										int foo = fprintf(fp,"START\n");
-										CodeGen($2);
+										CodeGen($3);
 										foo = fprintf(fp,"HALT");
 										int z= fclose(fp);
 										print_table();
@@ -101,32 +98,22 @@ GDefblock : DECL GDefList ENDDECL	{$$=$2;}
 		;
 
 GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
-
 		| GDecl				{$$=$1;}
-
 		;
 
 GDecl   : GINT GIdList ';'	{$$=$2; evalDecl($2,0); print_table();}
-
-		| GBOOL GIdList ';'	{$$=$2; evalDecl($2,1); print_table();}
-		
+		| GBOOL GIdList ';'	{$$=$2; evalDecl($2,1); print_table();}		
 		;
 
 GIdList :	GIdList ',' GId  	{$$=makenode($1,$3,_GIdList,0,DUMMY);}
-
 		| GId 					{$$=makenode(NULL,$1,_GIdList,0,DUMMY);}
-
 		;
 
 
 GId : ID 					{$$=makenode(NULL,NULL,ID,0,$1);}
-
 	| ID '[' Expr ']'		{$$=makenode($3,NULL,ARRAY,0,$1);}
-
 	| ID '(' ArgList ')'   	{$$ = makenode($3,NULL,FUNC,0,$1);}
-
 	| ID '(' ')'			{$$ = makenode(NULL,NULL,FUNC,0,$1);}
-
 	;
 
 ArgList : ArgList ';' Arg 	{$$ = makenode($1,$3,_ArgList,0,DUMMY);}
@@ -142,41 +129,64 @@ List : List ',' ID			{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_List,0,DUMMY
 	;
 
 
-Mainblock : MAIN  '{'  SILBEGIN StmtList END  '}'	{$$ = $4;}
 
+
+FdefList : FdefList Fdef
+		| Fdef
+		;
+ 
+
+Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList END  '}'  {$$ = $4;}
+	 | GBOOL ID '(' ArgList')' '{' LDefblock SILBEGIN StmtList END  '}'  {$$ = $4;}
+	 | GINT ID  '('  ')' '{' LDefblock SILBEGIN StmtList END  '}'        {$$ = $8;}
+	 | GBOOL ID '('  ')' '{' LDefblock SILBEGIN StmtList END  '}'		 {$$ = $8;}
+	 ;
+
+LDefblock 	: DECL LDefList ENDDECL   {$$ = $2;}
+
+LDefList	: LDefList LDecl		  
+			| LDecl						
+			;
+
+LDecl 	: GINT LIdList ';'	{$$ = $2;}
+		| GBOOL LIdList ';'		{$$ =  $2;}
+		;
+
+LIdList : LIdList ',' ID 		{$$ = makenode($1,makenode(NULL,NULL,834,0,$3),456,0,DUMMY);}
+		| ID 					{$$ = makenode(NULL,makenode(NULL,NULL,834,0,$1),456,0,DUMMY);}
+		;	
+
+
+
+Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList END  '}'	{$$ = $5;}
 		;
 
 
 StmtList: Stmt 			{$$=$1;}
-
 	| StmtList Stmt 	{$$=makenode($1,$2,_StmtList,0,DUMMY);}
-
 	;
 
 
-Stmt : WRITE '(' Expr ')' ';'
-	
+
+
+
+Stmt : WRITE '(' Expr ')' ';'	
 	{$$=makenode($3,NULL,WRITE,0,"Write"); if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 	| READ '(' Var ')' ';'
-
 	{$$=makenode($3,NULL,READ,0,"Read"); if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 	
 	| IF '(' Expr ')' THEN StmtList ENDIF ';'
-
 	{$$=makenode($3,$6,IF,0,"If");     if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 	| IF '(' Expr ')' THEN StmtList ELSE StmtList ENDIF ';'
-
 	{ $$=makenode($3,makenode($6,$8,ELSE,0,"Else"),IF,0,"If");  if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 
-	| WHILE '(' Expr ')' DO StmtList ENDWHILE ';'
-	
+	| WHILE '(' Expr ')' DO StmtList ENDWHILE ';'	
 	{$$=makenode($3,$6,WHILE,0,"While");	if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 	| Var '=' Expr ';'
-
 	{$$=makenode($1,$3,'=',0,"=");	if(type_check2($$)!=-1){getline();TypeFlag = 0;}}
 
 	;
@@ -184,48 +194,28 @@ Stmt : WRITE '(' Expr ')' ';'
 
 
 Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);}
-
 		| Expr '>' Expr    	{$$=makenode($1,$3,'>',0,DUMMY);}
-
 		| Expr GE Expr   	{$$=makenode($1,$3,GE,0,DUMMY);	}
-
-		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);	}
-		
+		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);	}	
 		| Expr NE Expr   	{$$=makenode($1,$3,NE,0,DUMMY);	}
-
 		| Expr EQEQ Expr   	{$$=makenode($1,$3,EQEQ,0,DUMMY);}
-
 		| '!' Expr  		{$$=makenode($2,NULL,NOT,0,DUMMY);}
-
-		| Expr AND Expr	{$$=makenode($1,$3,AND,0,DUMMY);}
-
-		| Expr OR Expr	{$$=makenode($1,$3,OR,0,DUMMY);}
-
-		| TRUE			{$$=makenode(NULL,NULL,_Truth,TRUE,DUMMY);} 
-
-		| FALSE			{$$=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
-
-		| Expr '+' Expr	{$$=makenode($1,$3,'+',0,DUMMY); }
-
-		| Expr '-' Expr	{$$=makenode($1,$3,'-',0,DUMMY); }
-
-		| Expr '*' Expr	{$$=makenode($1,$3,'*',0,DUMMY); }
-
-		| Expr '/' Expr	{$$=makenode($1,$3,'/',0,DUMMY); }
-
-		| Expr '%' Expr	{$$=makenode($1,$3,_mod,0,DUMMY);}
-
-		| INT 			{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
-
-		| Var   		{$$ = $1;}
-
+		| Expr AND Expr		{$$=makenode($1,$3,AND,0,DUMMY);}
+		| Expr OR Expr		{$$=makenode($1,$3,OR,0,DUMMY);}
+		| TRUE				{$$=makenode(NULL,NULL,_Truth,TRUE,DUMMY);} 
+		| FALSE				{$$=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
+		| Expr '+' Expr		{$$=makenode($1,$3,'+',0,DUMMY); }
+		| Expr '-' Expr		{$$=makenode($1,$3,'-',0,DUMMY); }
+		| Expr '*' Expr		{$$=makenode($1,$3,'*',0,DUMMY); }
+		| Expr '/' Expr		{$$=makenode($1,$3,'/',0,DUMMY); }
+		| Expr '%' Expr		{$$=makenode($1,$3,_mod,0,DUMMY);}
+		| INT 				{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
+		| Var   			{$$ = $1;}
 		;
 
 Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
-
 		| ID '[' Expr ']'	{$$=makenode($3,NULL,ARRAY,0,$1);}
-
-	;
+		;
 
 %%
 //version 2   typecheck need to be improved

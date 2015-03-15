@@ -11,6 +11,7 @@
 		int bind; 	//pointer to the entity
 		struct gnode * next;	//pointer in linked list
 		struct gnode * args;
+		struct gnode * local;
 } ;
 
 struct gnode* head=NULL;

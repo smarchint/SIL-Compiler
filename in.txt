@@ -3,8 +3,26 @@ decl
 	bool def,ght,bar();
 enddecl
 
+Integer foo(){
+	decl 
+		Integer a,b,c;
+	enddecl
 
+	begin
+		a=a+1;
+		b=b+1;
+		write(a);
+		write(b);
+	end
+
+}
 main(){
+decl
+	Integer a,b,c,d;
+	bool drk,sejhyg;
+
+enddecl
+
 begin
 	a=1;
 	write(a);
