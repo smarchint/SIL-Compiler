@@ -296,6 +296,56 @@ int func_check1(int return_type,char *name,struct node *nd){
 
 }
 
+
+//Helper global var
+struct gnode * temp2;
+//helpewr function for func_check2
+int list_checker(struct node * nd){
+
+	int t1 = strcmp(nd->right->varname,temp2->name);
+	//++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+	//change here if you want function arg list to be moire flexible
+	struct gnode * tt;
+	tt= fetch(nd->right->varname);
+	if(tt == NULL) {printf("argument is invalid\n");exit(1);}
+
+	if(t1!=0 || (temp2->type != tt->type )) {
+		printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp2->type,nd->right->varname,tt->type);
+		exit(1);
+	}
+	
+	printf("present temp at %s\n",temp1->name);
+	if(temp2->next)
+	temp2 = temp2->next;
+	printf("next temp at %s\n",temp1->name);
+	
+	int t= list_checker(nd->left); 
+	return t;
+
+}
+
+
+//In expressions
+int func_check2(struct node * nd){
+
+	struct gnode *temp;
+	temp = fetch(nd->varname);
+
+	if(!temp) {printf("undeclared function used\n");exit(1);}
+
+	if(temp->args != NULL && nd->left == NULL) {printf("Arguments mismatch\n");exit(1);}
+
+	if(temp->args == NULL && nd->left != NULL) {printf("Arguments mismatch\n");exit(1);}
+
+	//main part
+	temp2 = temp->args;
+	list_checker(nd->left);
+
+
+	return temp->type-3;
+}
+
+
 //version 2   typecheck need to be improved
 //1 for bool ;  0 for int int 
 int type_check2(struct node * nd ){
@@ -342,7 +392,7 @@ int type_check2(struct node * nd ){
 		case NOT : {int l = type_check2(nd->left);int r=1; if(nd->right){ r = type_check2(nd->right);} 
 					if(l==1 && r ==1) return 1; return -2;}
 
-
+		case FUNC : return func_check2(nd);
 	}
 
 }
@@ -431,7 +481,7 @@ void install_args(struct gnode *t,struct node *nd,int i){
 }
 //allcating space in memory of target machine
 //suggestion : Add error msg for redeclarations;
-void evalDecl(struct node *nd,int i,char * func){	//i for type filling in table
+void evalDecl(struct node *nd,int i,char * func){	// i for type filling in table
 	if(nd == NULL ) {
 		//for relative adddressing of local variable
 		// initialisig after every time
