@@ -19,6 +19,11 @@
 	#define _Arg 37
 	#define _GIdList 38
 	#define _List 39
+	#define _LDefList 40
+	#define _LIdList 41
+	#define _Fdeflist 42
+	#define _Fdef 43
+	#define _ARG_LVAR 44
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
@@ -26,7 +31,7 @@
 
 	FILE * fp;
 
-	void evalDecl(struct node *nd,int i);
+	void evalDecl(struct node *nd,int i,char * name);
 
 %}
 
@@ -101,12 +106,12 @@ GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
 		| GDecl				{$$=$1;}
 		;
 
-GDecl   : GINT GIdList ';'	{$$=$2; evalDecl($2,0); print_table();}
-		| GBOOL GIdList ';'	{$$=$2; evalDecl($2,1); print_table();}		
+GDecl   : GINT GIdList ';'	{$$=$2; evalDecl($2,0,DUMMY); print_table();}
+		| GBOOL GIdList ';'	{$$=$2; evalDecl($2,1,DUMMY); print_table();}		
 		;
 
-GIdList :	GIdList ',' GId  	{$$=makenode($1,$3,_GIdList,0,DUMMY);}
-		| GId 					{$$=makenode(NULL,$1,_GIdList,0,DUMMY);}
+GIdList :	GIdList ',' GId  {$$=makenode($1,$3,_GIdList,0,DUMMY);}
+		| GId 				 {$$=makenode(NULL,$1,_GIdList,0,DUMMY);}
 		;
 
 
@@ -131,29 +136,36 @@ List : List ',' ID			{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_List,0,DUMMY
 
 
 
-FdefList : FdefList Fdef
-		| Fdef
+FdefList : FdefList Fdef 	{$$ = makenode($1,$2,_Fdeflist,0,"Fdeflist");}
+		| Fdef 				{$$ = makenode(NULL,$1,_Fdeflist,0,"Fdeflist");}
 		;
  
 
-Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList END  '}'  {$$ = $4;}
-	 | GBOOL ID '(' ArgList')' '{' LDefblock SILBEGIN StmtList END  '}'  {$$ = $4;}
-	 | GINT ID  '('  ')' '{' LDefblock SILBEGIN StmtList END  '}'        {$$ = $8;}
-	 | GBOOL ID '('  ')' '{' LDefblock SILBEGIN StmtList END  '}'		 {$$ = $8;}
+Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList END  '}'  
+							{$$ = makenode($4,$9,_Fdef,0,"Fdef");evalDecl($7,-1,$2);	 	}
+
+	 | GBOOL ID '(' ArgList')' '{' LDefblock SILBEGIN StmtList END  '}' 
+							{$$ = makenode($4,$9,_Fdef,0,"Fdef");evalDecl($7,-1,$2);	 	}
+
+	 | GINT ID  '('  ')' '{' LDefblock SILBEGIN StmtList END  '}'
+	 						{$$ = makenode(NULL,$8,_Fdef,0,"Fdef");evalDecl($6,-1,$2);	 	}
+
+	 | GBOOL ID '('  ')' '{' LDefblock SILBEGIN StmtList END  '}'
+	 						{$$ = makenode(NULL,$8,_Fdef,0,"Fdef");evalDecl($6,-1,$2);	 	}
 	 ;
 
 LDefblock 	: DECL LDefList ENDDECL   {$$ = $2;}
 
-LDefList	: LDefList LDecl		  
-			| LDecl						
+LDefList	:LDefList LDecl {$$ = makenode($1,$2,_LDefList,0,"LDefList");}
+			| LDecl			{$$ = makenode(NULL,$1,_LDefList,0,"LDefList");}
 			;
 
-LDecl 	: GINT LIdList ';'	{$$ = $2;}
-		| GBOOL LIdList ';'		{$$ =  $2;}
+LDecl 	: GINT LIdList ';'	{$$ = makenode($2,NULL,GINT,0,"Gint");}
+		| GBOOL LIdList ';'	{$$ = makenode($2,NULL,GBOOL,0,"Gint");}
 		;
 
-LIdList : LIdList ',' ID 		{$$ = makenode($1,makenode(NULL,NULL,834,0,$3),456,0,DUMMY);}
-		| ID 					{$$ = makenode(NULL,makenode(NULL,NULL,834,0,$1),456,0,DUMMY);}
+LIdList : LIdList ',' ID 	{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_LIdList,0,DUMMY);}
+		| ID 				{$$ = makenode(NULL,makenode(NULL,NULL,ID,0,$1),_LIdList,0,DUMMY);}
 		;	
 
 
@@ -162,8 +174,8 @@ Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList END  '}'	{$$ = $5;}
 		;
 
 
-StmtList: Stmt 			{$$=$1;}
-	| StmtList Stmt 	{$$=makenode($1,$2,_StmtList,0,DUMMY);}
+StmtList: Stmt 				{$$=$1;}
+	| StmtList Stmt 		{$$=makenode($1,$2,_StmtList,0,DUMMY);}
 	;
 
 
@@ -211,6 +223,7 @@ Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);}
 		| Expr '%' Expr		{$$=makenode($1,$3,_mod,0,DUMMY);}
 		| INT 				{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
 		| Var   			{$$ = $1;}
+		| ID '(' ArgList ')'{$$ = makenode($3,NULL,FUNC,0,$1);}
 		;
 
 Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
@@ -221,7 +234,9 @@ Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 //version 2   typecheck need to be improved
 //1 for bool ;  0 for int int 
 int type_check2(struct node * nd ){
-	if(nd== NULL) return -1;
+	if(nd== NULL) {
+
+		return -1;}
 
 	switch(nd->flag){
 
@@ -281,8 +296,28 @@ int RegNo = -1;	//range 0-7
 //use and increase to size
 int LocNo = 0;	//range 0-25
 
+int  BP =0;
+int local_LocNo = 0;
+void install_local_var(struct gnode *t,struct node *nd,int i){
+	struct gnode * temp;
+	temp = (struct gnode *) malloc(sizeof(struct gnode ));
 
-void install_args(struct gnode *t,struct node *nd,int i){
+	temp->name = nd->varname;
+	temp->type = i;
+	temp->args = NULL;
+	temp->local =NULL;
+
+
+	//implement BP later for the time being let it be 0
+	temp->bind = BP + local_LocNo;
+	local_LocNo++;
+
+	temp->next = t->local;
+	t->local = temp;
+
+}
+
+void install_args(struct gnode *t,struct node *nd,int i){ 
 	if(nd == NULL) return;
 	switch(nd->flag){
 		case _ArgList: {install_args(t,nd->left,i);install_args(t,nd->right,i);break;}
@@ -294,12 +329,27 @@ void install_args(struct gnode *t,struct node *nd,int i){
 						temp->name = nd->right->varname;
 						temp->type = i;
 						temp->args = NULL;
-						
+						temp->local = NULL;
 						//importance here : 
 						//get gnode pointer and then 
 						//upgate it's args pointer
-						temp->next = t->args;
-						t->args= temp;
+
+
+
+						if(t->args == NULL) {
+							t->args= temp;
+							temp->next = NULL;
+						}
+						else{
+							struct gnode * head;
+							head = t->args;
+							while(head->next){
+								head = head->next;
+							}
+							head->next = temp;
+							temp->next = NULL;
+						}
+
 						break;
 					}
 
@@ -311,13 +361,19 @@ void install_args(struct gnode *t,struct node *nd,int i){
 
 //allcating space in memory of target machine
 //suggestion : Add error msg for redeclarations;
-void evalDecl(struct node *nd,int i){	//i for type filling in table
-	if(nd == NULL ) return;
+void evalDecl(struct node *nd,int i,char * func){	//i for type filling in table
+	if(nd == NULL ) {
+		//for relative adddressing of local variable
+		// initialisig after every time
+		local_LocNo = 0;
+		return;
+	}
 	switch(nd->flag){
 		//case _GDefList: evalDecl(nd->left,i);evalDecl(nd->right,i); break;
 		//case GINT: 		evalDecl(nd->left,0); break;
 		//case GBOOL: 	evalDecl(nd->left,1); break;
-		case _GIdList: 	evalDecl(nd->left,i);
+		case _GIdList: 	evalDecl(nd->left,i,func);
+
 						if(nd->right->flag==ID) {
 							gentry(nd->right->varname,i,1,LocNo);
 							LocNo++;
@@ -346,6 +402,19 @@ void evalDecl(struct node *nd,int i){	//i for type filling in table
 						}
 						break;
 
+		case _LDefList: evalDecl(nd->left,i,func);evalDecl(nd->right,i,func);break;
+		case GINT 	: evalDecl(nd->left,0,func);break;
+		case GBOOL	: evalDecl(nd->left,1,func);break;
+
+		case _LIdList: 	evalDecl(nd->left,i,func);
+						struct gnode *temp ;
+						temp = fetch(func);
+						printf("type : %d\n",temp->type);
+						if(temp->type !=  i+3) {printf("not good\n");exit(1);}
+
+						install_local_var(temp,nd->right,i);\
+
+						break;	
 	}
 }
 

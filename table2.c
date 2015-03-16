@@ -117,6 +117,12 @@ void print_table(){
 				printf("%s (%d) ," ,t->name,t->type);
 				t=t->next;
 			}
+			t = temp->local;
+			printf("\n\t");
+			while(t){
+				printf(" %s (%d) ," ,t->name,t->type);
+				t=t->next;
+			}
 			printf("\n");
 
 		}

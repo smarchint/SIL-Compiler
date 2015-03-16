@@ -16,6 +16,16 @@ Integer foo(){
 	end
 
 }
+
+Integer foo(){
+	decl
+		Integer a;
+	enddecl
+	begin
+		a=a+1;
+
+	end
+}
 main(){
 decl
 	Integer a,b,c,d;
