@@ -1,8 +1,12 @@
 decl
-	Integer a,b,c,arr[10],i,j,temp; 
+	Integer a,b,c,arr[10],temp,i,j; 
 	bool d,e,f; 
 enddecl
 
+main(){
+decl
+	Integer sdfd;
+enddecl
 begin
 	a=1;b=2;c=3;
 	i=0;
@@ -31,3 +35,5 @@ begin
 	endwhile;
 	write(a+b*c);
 end
+
+}

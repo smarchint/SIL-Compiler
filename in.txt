@@ -1,22 +1,6 @@
 decl
-	Integer a,b,c[5],i,foo(Integer ij,kl,mn;bool sdf);	
-	bool def,ght,bar();
+	Integer a,b,c,d,i,j,n,sum,k,arr[10],temp;
 enddecl
-
-Integer foo(Integer ij,kl,mn;bool sdf){
-	decl 
-		Integer a,b,c;
-	enddecl
-
-	begin
-		a=a+1;
-		b=b+1;
-		write(a);
-		write(b);
-	end
-
-}
-
 
 main(){
 decl
@@ -26,36 +10,55 @@ decl
 enddecl
 
 begin
-	a=1;
-	write(a);
-	if(1<2) then
-		write(23);
-	endif;
-	i=0;
-	while(i<10)do
-		write(i);
-		i=i+1;
+
+	
+
+	read(n);
+	sum =0 ;
+	i=1;j=1;k=1;
+	while (i<=n) do
+		j = 1;
+		while(j<=n)do
+			k = 1;
+			while(k<=n)do
+				sum = sum + 1;
+				k=k+1;
+			endwhile;
+			j=j+1;
+		endwhile;
+		i=i+1;	
 	endwhile;
 
-	b=3;
-	if(b == 2) then
-		write(122);
-	else 
-		if(b==3) then
-			write(133);
-		endif;
-	endif;
+	
+	write(sum);
 
 end
 }
 
+i=0;
 
-Integer foo(){
-	decl
-		Integer a;
-	enddecl
-	begin
-		a=a+1;
+	while(i<5) do
+		read(arr[i]);
+		i=i+1;
+	endwhile;
+i=0;
+	j=0;	
+	while(i<4)do
+		j=i+1;
+		while(j<5)do
+			if(arr[i]>arr[j])then
+				temp=arr[j];
+				arr[j]=arr[i];
+				arr[i]=temp;
+			endif;
+			j=j+1;
+		endwhile;
+		i=i+1;
+	endwhile;
+	
 
-	end
-}
+	i=0;
+	while(i<5)do
+		write(arr[i]);
+		i=i+1;
+	endwhile;

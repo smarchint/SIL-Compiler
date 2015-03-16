@@ -97,6 +97,19 @@ Program: GDefblock FdefList Mainblock	{
 										exit(1);
 									}
 								}
+	 |GDefblock  Mainblock	{	
+									//print_table();
+									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
+									else{
+										fp= fopen("outfile.txt","w+");
+										int foo = fprintf(fp,"START\n");
+										CodeGen($2);
+										foo = fprintf(fp,"HALT");
+										int z= fclose(fp);
+										print_table();
+										exit(1);
+									}
+								}
 	;
 
 GDefblock : DECL GDefList ENDDECL	{$$=$2;}
@@ -174,6 +187,7 @@ LIdList : LIdList ',' ID 	{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_LIdList
 
 
 Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList END  '}'	{$$ = $5;}
+		|  MAIN  '{'  SILBEGIN StmtList END  '}'	{$$ = $4;}
 		;
 
 
