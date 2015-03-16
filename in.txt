@@ -1,9 +1,9 @@
 decl
-	Integer a,b,c[5],i,foo(Integer ij,kl,mn);	
+	Integer a,b,c[5],i,foo(Integer ij,kl,mn;bool sdf);	
 	bool def,ght,bar();
 enddecl
 
-Integer foo(){
+Integer foo(Integer ij,kl,mn;bool sdf){
 	decl 
 		Integer a,b,c;
 	enddecl
@@ -17,15 +17,7 @@ Integer foo(){
 
 }
 
-Integer foo(){
-	decl
-		Integer a;
-	enddecl
-	begin
-		a=a+1;
 
-	end
-}
 main(){
 decl
 	Integer a,b,c,d;
@@ -53,6 +45,17 @@ begin
 			write(133);
 		endif;
 	endif;
+
 end
 }
 
+
+Integer foo(){
+	decl
+		Integer a;
+	enddecl
+	begin
+		a=a+1;
+
+	end
+}
