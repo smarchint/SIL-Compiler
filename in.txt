@@ -1,6 +1,49 @@
 decl
-	Integer a,b,c,d,i,j,n,sum,k,arr[10],temp;
+	Integer a,b,c,d,i,j,n,sum,k,arr[10],temp,foo(Integer abc,def);
+	bool foo2(),bar(bool i,j,k);
 enddecl
+
+Integer foo(Integer a1,b2){
+	decl
+		Integer a,b,c;
+		bool d,e,f;
+	enddecl
+
+	begin
+
+		a1=1;
+		b=1;
+		write(10000);
+		return 234;
+	end
+}
+
+bool bar(bool k,l,m){
+	decl
+		Integer a,b,c;
+		bool q;
+	enddecl
+	begin
+		a=1;
+		return q;
+	end
+}
+
+bool foo2(){
+	decl
+		Integer a1,b1,c1;
+		bool d1,e1,f1;
+	enddecl
+
+	begin
+		a= foo(a,d);
+		a=1;
+		b=1;
+		write(10000);
+		return d1;
+	end
+}
+
 
 main(){
 decl
@@ -12,6 +55,8 @@ enddecl
 begin
 
 	
+
+
 
 	read(n);
 	sum =0 ;
@@ -32,33 +77,7 @@ begin
 	
 	write(sum);
 
+	return a;
+
 end
 }
-
-i=0;
-
-	while(i<5) do
-		read(arr[i]);
-		i=i+1;
-	endwhile;
-i=0;
-	j=0;	
-	while(i<4)do
-		j=i+1;
-		while(j<5)do
-			if(arr[i]>arr[j])then
-				temp=arr[j];
-				arr[j]=arr[i];
-				arr[i]=temp;
-			endif;
-			j=j+1;
-		endwhile;
-		i=i+1;
-	endwhile;
-	
-
-	i=0;
-	while(i<5)do
-		write(arr[i]);
-		i=i+1;
-	endwhile;

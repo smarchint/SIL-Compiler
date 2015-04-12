@@ -47,6 +47,43 @@ void print(struct node * nd){
 	//printf("type	: %d\n",nd->type);
 	printf("----------------------------\n");
 }
+
+/*  mistake
+void print_tree(struct  node *nd){
+	if (nd!=NULL){
+		print_tree(nd->left);
+
+		if(nd->flag==1) printf("-%d-",nd->val);
+		else if(nd->flag==2) printf("-%s-",*(nd->varname));
+		else if(nd->flag==3) printf("-read()-");
+		else if(nd->flag==4) printf("-write()-");
+		else if(nd->flag==100) printf("-stmts-");
+		else if(nd->flag==5) printf("-if-");
+		else if(nd->flag==6) printf("-then-");
+		else if(nd->flag==7) printf("-while-");
+		else if(nd->flag==8) printf("-do-");
+		else if(nd->flag==9) printf("-endwhile-");
+		else if(nd->flag==10) printf("-int-");
+		print_tree(nd->right);
+		printf(" ");
+	} 
+
+}
+*/
+extern FILE *yyin;
+int main(int argc, char *argv[]) {
+	if(argc >= 2){
+			yyin = fopen(argv[1], "r");		
+			yyparse();			
+			if(argc >= 2) fclose(yyin);
+	}
+	else{
+		yyparse();
+	}		
+	return 0;
+}
+
+
 /* 	deepcopy of a struct
 
 struct node* deep_copy( struct node* img){
@@ -71,37 +108,3 @@ struct node* deep_copy( struct node* img){
     return result;
 }
 */
-///*  mistake
-void print_tree(struct  node *nd){
-	if (nd!=NULL){
-		print_tree(nd->left);
-
-		if(nd->flag==1) printf("-%d-",nd->val);
-		else if(nd->flag==2) printf("-%s-",*(nd->varname));
-		else if(nd->flag==3) printf("-read()-");
-		else if(nd->flag==4) printf("-write()-");
-		else if(nd->flag==100) printf("-stmts-");
-		else if(nd->flag==5) printf("-if-");
-		else if(nd->flag==6) printf("-then-");
-		else if(nd->flag==7) printf("-while-");
-		else if(nd->flag==8) printf("-do-");
-		else if(nd->flag==9) printf("-endwhile-");
-		else if(nd->flag==10) printf("-int-");
-		print_tree(nd->right);
-		printf(" ");
-	} 
-
-}
-//*/
-extern FILE *yyin;
-int main(int argc, char *argv[]) {
-	if(argc >= 2){
-			yyin = fopen(argv[1], "r");		
-			yyparse();			
-			if(argc >= 2) fclose(yyin);
-	}
-	else{
-		yyparse();
-	}		
-	return 0;
-}
