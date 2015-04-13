@@ -24,11 +24,33 @@
 	#define _Fdeflist 42
 	#define _Fdef 43
 	#define _ARG_LVAR 44
+	#define _junc 45
 	#define HEAD 1
 	#define L_HEAD 0
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
+	
+
+	//===GLOBAL VARIABLES used in codegen part
+
+	//reg call count
+	int regCallCount = 0;
+
+	int regStack[8];
+	//for label generation
+	int Label=0;
+
+	//free reg after completion of its requirement
+	int RegNo = -1;	//range 0-7
+
+	//use and increase to size
+	int LocNo = 0;	//range 0-25
+
+	int BP = 0;
+	int SP = 0;
+
+	//============================================
 
 
 	FILE * fp;
@@ -37,6 +59,9 @@
 	void flush_local();
 	void ret_check(int i,struct node * nd);
 	void install_args_to_locals(int i,struct node * nd);
+	void push_list(struct node * nd);
+	void pop_list(struct node * nd);
+	void func_code_gen(int i,struct node * nd);
 
 %}
 
@@ -94,6 +119,9 @@ Program: GDefblock FdefList Mainblock	{
 									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
 									else{
 										fp= fopen("outfile.txt","w+");
+										
+										print_table();
+										func_code_gen(-1,$2);
 										int foo = fprintf(fp,"START\n");
 										CodeGen($3);
 										foo = fprintf(fp,"HALT");
@@ -160,7 +188,11 @@ FdefList : FdefList Fdef 	{$$ = makenode($1,$2,_Fdeflist,0,"Fdeflist");}
 Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'  
 							{	/*MOD : Fdef  <-- stmtlist     (improves tree)*/
 								ret_check(0,$10);
-								$$ = makenode($9,$7,_Fdef,0,$2);	//NEW : right child
+								
+								struct gnode * temp = fetch(head,$2);
+								temp->flabel = Label; Label++;
+								
+								$$ = makenode($9,makenode($4,$7,_junc,0,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 								int t = func_check1(0,$2,$4);
 								if(t !=-1  ) {getline();TypeFlag=0;}
 								flush_local();
@@ -169,7 +201,11 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
 	 | GBOOL ID '(' ArgList')' '{' LDefblock SILBEGIN StmtList retExp END  '}' 
 							{	
 								ret_check(1,$10);
-								$$ = makenode($9,$7,_Fdef,0,$2);	//NEW : right child
+
+								struct gnode * temp = fetch(head,$2);
+								temp->flabel = Label; Label++;
+
+								$$ = makenode($9,makenode($4,$7,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 								int t = func_check1(1,$2,$4);
 								if(t !=-1  ) {getline();TypeFlag=0;}
 								flush_local();
@@ -178,7 +214,11 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
 	 | GINT ID  '('  ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
 	 						{
 	 							ret_check(0,$9);
-	 							$$ = makenode($8,$6,_Fdef,0,$2);	//NEW : right child
+
+	 							struct gnode * temp = fetch(head,$2);
+								temp->flabel = Label; Label++;
+
+	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 	 							int t = func_check1(0,$2,NULL); 	//error may be here
 								if(t !=-1  ) {getline();TypeFlag=0;}
 								flush_local();
@@ -188,7 +228,11 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
 	 | GBOOL ID '('  ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
 	 						{
 	 							ret_check(1,$9);
-	 							$$ = makenode($8,$6,_Fdef,0,$2);	//NEW : right child
+
+	 							struct gnode * temp = fetch(head,$2);
+								temp->flabel = Label; Label++;
+
+	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 	 							int t = func_check1(1,$2,NULL);		//error may be here(null in args)
 								if(t !=-1  ) {getline();TypeFlag=0;}
 								flush_local();
@@ -212,17 +256,19 @@ LIdList : LIdList ',' ID 	{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_LIdList
 		| ID 				{$$ = makenode(NULL,makenode(NULL,NULL,ID,0,$1),_LIdList,0,DUMMY);}
 		;	
 
-Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList retExp END  '}'	{$$ = $5;flush_local();ret_check(0,$6);}
-		|  MAIN  '{'  SILBEGIN StmtList END  '}'	{$$ = $4;}
+Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList retExp END  '}'	{$$ = $5;
+																	flush_local();ret_check(0,$6);
+																	}
+		|  MAIN  '{'  SILBEGIN StmtList retExp END  '}'	{$$ = $4;
+													flush_local();ret_check(0,$5);
+													//local_head is null
+													}
 		;
 
 
 StmtList: Stmt 				{$$=$1;}
 	| StmtList Stmt 		{$$=makenode($1,$2,_StmtList,0,DUMMY);}
 	;
-
-
-
 
 
 Stmt : WRITE '(' Expr ')' ';'	
@@ -277,6 +323,11 @@ Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 %%
 
 //=========================================================================================================
+
+//====================================================================================
+
+
+
 
 //temp1 is global node pointer associated with checkargs func only
 struct gnode * temp1;
@@ -489,35 +540,22 @@ int type_check2(struct node * nd ){ // -1 is good sign , -2 is bad
 	}
 
 }
-
 //CODE GENERATION PART=================================================================
 
-//===GLOBAL VARIABLES used in codegen part
 
-//reg call count
-int regCallCount = 0;
-
-int regStack[8];
-//for label generation
-int Label=0;
-
-//free reg after completion of its requirement
-int RegNo = -1;	//range 0-7
-
-//use and increase to size
-int LocNo = 0;	//range 0-25
 
 //--------------------------------------------
 
 
-int  BP =0;
-int local_LocNo = 0;
+
 //=============================================
 void flush_local(){
 	//free memoey of past local_head
+	/*
 	if(local_head && local_head->next){
 		struct gnode * delnode = local_head->next;	//safe to do like this -- good prctice
 		struct gnode * helper;
+		
 		while(delnode){
 			helper = delnode ;
 			delnode = delnode->next;
@@ -534,16 +572,21 @@ void flush_local(){
 		free(local_head->next);
 		free(local_head->args);
 	}
+	*/
 	local_head = NULL;
 	//return;
 }
-void foo(int flag, char * _name){
 
+//[BP - 3] for arguments in run stack
+int nastyCount=-3;	//warning : initialize everytime to -3 do nort forget stupid
 
+void foo(int i, char * _name){
 	struct gnode * temp;
 	temp = (struct gnode *) malloc(sizeof(struct gnode)) ;
 	temp->name = _name;
-	temp->type = flag;
+	temp->type = i;
+	temp->bind = nastyCount;
+	nastyCount--;
 	temp->args = NULL;
 
 	temp->next = local_head;
@@ -557,7 +600,7 @@ void install_args_to_locals(int i,struct node * nd){
 	if (nd == NULL) return;
 	//printf("sam is hwrw\n");
 	switch(nd->flag){
-		case _ArgList:{install_args_to_locals(i,nd->left);install_args_to_locals(i,nd->left);break;}
+		case _ArgList:{install_args_to_locals(i,nd->left);install_args_to_locals(i,nd->right);break;}
 		case GINT :   {install_args_to_locals(0,nd->left);break;}
 		case GBOOL:   {install_args_to_locals(1,nd->left);break;}
 		case _List :  {install_args_to_locals(i,nd->left);foo(i,nd->right->varname);break;}
@@ -585,26 +628,20 @@ void install_local_var(struct node *nd,int i){
 	temp->args = NULL;
 	//temp->local =NULL;
 
-
-	//implement BP later for the time being let it be 0
-	temp->bind = BP + local_LocNo;
-	local_LocNo++;
-
 	temp->next = local_head;
 	local_head = temp;
 
 }
 
 
-//at func declarations
-
-void install_args(struct gnode *t,struct node *nd,int i){ 
+//at global sym table func declarations
+void install_args(struct gnode *t,struct node *nd,int i,int count){ 
 	if(nd == NULL) return;
 	switch(nd->flag){
-		case _ArgList: {install_args(t,nd->left,i);install_args(t,nd->right,i);break;}
-		case GINT : {install_args(t,nd->left,0);break;}
-		case GBOOL: {install_args(t,nd->left,1);break;}
-		case _List :{install_args(t,nd->left,i);
+		case _ArgList: {install_args(t,nd->left,i,count);install_args(t,nd->right,i,count);break;}
+		case GINT : {install_args(t,nd->left,0,count);break;}
+		case GBOOL: {install_args(t,nd->left,1,count);break;}
+		case _List :{install_args(t,nd->left,i,count+1);
 						struct gnode *temp;
 
 
@@ -612,30 +649,9 @@ void install_args(struct gnode *t,struct node *nd,int i){
 						temp->name = nd->right->varname;
 						temp->type = i;
 						temp->args = NULL;
-						//temp->local = NULL;
-						//importance here : 
-						//get gnode pointer and then 
-						//upgate it's args pointer
-
-						
+						temp->bind = count;
 						temp->next = t->args;
 						t->args = temp;
-
-						/*  arg list in g symbol order reverse
-						if(t->args == NULL) {
-							t->args= temp;
-							temp->next = NULL;
-						}
-						else{
-							struct gnode * head;
-							head = t->args;
-							while(head->next){
-								head = head->next;
-							}	
-							head->next = temp;
-							temp->next = NULL;
-						}
-						*/
 
 						break;
 					}
@@ -652,7 +668,6 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 	if(nd == NULL ) {
 		//for relative adddressing of local variable
 		// initialisig after every time
-		local_LocNo = 0;
 		return;
 	}
 	switch(nd->flag){
@@ -690,7 +705,7 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 							temp->next =head;
 							head = temp;
 							//printf("head : %s\n",head->next->name );
-							install_args(temp,nd->right->left,i);							
+							install_args(temp,nd->right->left,i,0);							
 						}
 						break;
 
@@ -706,7 +721,6 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 						//if(!temp) {printf("Function undeclared\n");exit(1);}
 						
 						//if(temp->type-3 !=  i) {printf("function of different typecheck\n");exit(1);}
-
 						install_local_var(nd->right,i);
 
 						break;	
@@ -716,7 +730,7 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 //=======================================----------------------------------======
 
 //code gen helpers=============================================================
-void printRegStack(){
+void printRegStack(){	//needn't touch
 	regCallCount++;
 
 	printf("( %d )regStack : ",regCallCount);
@@ -728,22 +742,28 @@ void printRegStack(){
 	printf("\n");
 }
 
-int getLoc(char * varname){
+int getLoc(char * varname){	//fetch  arguments in local_head
 
 	struct gnode * temp;
 	
-	temp = fetch(head,varname); 	//NEED to CHANGE (head)
+	temp = fetch(local_head,varname);
+	
+	if(temp) return (BP + temp->bind);
+	
+	else temp = fetch(head,varname);
 
-	return temp->bind;
+	return temp->bind;	//global
 }
+
 
 int getReg(){
 //Suggestion : Add error msg if RegNo exceeds 7
 	
 	RegNo++;
 	if(RegNo >7) {
+		getline();
 		printf("Exeeded register usage\n");
-		return;
+		exit(1);
 	}
 
 	regStack[RegNo] =RegNo;
@@ -818,6 +838,110 @@ int op(struct node* nd , int flag){
 //CODEGEN===============================================================
 //generates machine code for SIM
 //returns regno to be used at an instance
+
+
+void foo2(int i, char * _name,int count){
+
+
+	struct gnode * temp;
+	temp = (struct gnode *) malloc(sizeof(struct gnode)) ;
+	temp->name = _name;
+	temp->type = i;
+	temp->args = NULL;
+	temp->bind = count;
+
+	temp->next = local_head;
+	local_head = temp;
+
+
+}
+
+int agcount =1;
+void bind_locals(int i,struct node * nd){
+	//binds local to mem relative to bp 
+
+	if (nd == NULL) return;
+
+	switch(nd->flag){
+
+		case _LDefList : {bind_locals(i,nd->left);bind_locals(i,nd->right);break;}
+		case GINT : {bind_locals(0,nd->left);break;}
+		case GBOOL: {bind_locals(1,nd->left);break;}
+		case _LIdList : {
+							bind_locals(i,nd->left);
+							struct gnode * temp = fetch(local_head,nd->right->varname);
+							if(temp == NULL)
+							foo2(i,nd->right->varname,agcount);	//main part
+							agcount++;
+							break;
+						}
+	}
+
+	return ;
+}
+
+
+
+//ADD : label to func  in gsymtab
+
+void func_code_gen(int i,struct node * nd){
+	if (nd == NULL) return ;
+	switch(nd->flag){
+
+		case _Fdeflist : {
+							func_code_gen(i,nd->left);
+							func_code_gen(i,nd->right);	
+							break;
+						}
+		case _Fdef : {
+						//make the local table then generate the code
+
+						flush_local();
+						printf("------Visting : %s\n",nd->varname);
+
+						fprintf(fp,"L%d:\n",nd->val);
+
+						fprintf(fp,"PUSH BP\n");
+						fprintf(fp,"MOV BP,SP\n");
+						agcount = 1;		//for local vars
+						nastyCount = -3;  //for the sake of arguments -- do you get it?
+						install_args_to_locals(-1,nd->right->left);
+						bind_locals(-1,nd->right->right);
+						printf("safty check ");print_locals();
+						//by looking the first (last entered var in local sym tab inc the sp i.e push a reg)
+						if(local_head){
+							int r = getReg();
+							fprintf(fp,"MOV R%d, 0",r);	//init all locals as 0
+							
+							int m = local_head->bind; printf("val is impoertantianno %d\n", m);
+							int  i=0;
+							while(i<m){
+								fprintf(fp,"PUSH R%d",r);
+								i=i+1;
+							}
+							freeReg(r,nd);
+							//print_locals();
+
+							printf("say hi to me now\n");
+						}
+						CodeGen(nd->left);
+						break;
+						}
+
+	}
+	return;
+}
+
+int getFuncLabel(char * name){
+
+	struct gnode * temp = fetch(head, name);
+
+	return temp->flabel;
+
+
+}
+
+
 int CodeGen(struct node *nd){
 	if(nd==NULL) return -1;
 
@@ -957,7 +1081,7 @@ int CodeGen(struct node *nd){
 
 					break;}
 
-		case IF:{//currently not having else part
+		case IF:{
 					int r  = CodeGen(nd->left);
 
 					int l1 = Label;
@@ -1060,10 +1184,90 @@ int CodeGen(struct node *nd){
 						 break;
 
 					}
+
+		case FUNC : {	//ADD : improve this point geta reg free it 
+						//		 in this process you will get the max reg in use
+						int i = 0;
+						while(i<8){
+							fprintf(fp, "PUSH R%d\n",i );\
+							i=i+1;
+						}
+						
+						push_list(nd->left);
+
+						int r = getReg();
+						fprintf(fp, "PUSH R%d\n", r); //return add
+						freeReg(r,nd);
+						int lab = getFuncLabel(nd->varname);
+						
+						fprintf(fp,"CALL L%d\n",lab);
+
+						r = getReg();
+						fprintf(fp,"POP R%d",r);	//	r == return val i guess
+						
+
+						pop_list(nd->left);
+
+						//something's fishy here : how to store return value
+						i=7;
+						while(i>=0){
+							if (i!=r)
+							fprintf(fp,"POP R%d\n",i);
+							i--;
+						}
+
+						return r;
+
+					}
+
+		case RET : {
+						int r = CodeGen(nd->left);
+						fprintf(fp, "MOV [BP - 2], R%d\n",r );
+						freeReg(r,nd);
+						fprintf(fp, "MOV SP,BP\n");
+						fprintf(fp,"MOV BP,[BP]\n");
+						fprintf(fp,"RET");
+
+					}
+
+
 	}
 
 
 
+}
+
+//first arg pushed last
+void push_list(struct node * nd){
+
+	if(nd == NULL) return;
+
+	//this sequence is important and arg names must match exactly
+
+	int r = CodeGen(nd->right);
+
+	fprintf(fp,"PUSH R%d\n",r);
+
+	freeReg(r,nd->right);
+
+	push_list(nd->left);
+
+
+	return;
+}
+
+void pop_list(struct node * nd){
+	if (nd == NULL) return;
+
+	pop_list(nd->left);
+
+	int r =getReg();
+
+	fprintf(fp,"POP R%d\n",r);
+
+	freeReg(r,nd->right);
+
+	return ;
 }
 
 //Old code need not be looked at

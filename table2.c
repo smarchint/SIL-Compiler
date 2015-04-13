@@ -9,6 +9,7 @@
 		int type;				//for (0)int or (1)bool
 		int size; 				//1 for int and n for array
 		int bind; 				//pointer to the entity
+		int flabel;
 		struct gnode * next;	//pointer in linked list
 		struct gnode * args;
 		//struct gnode * local;
@@ -32,7 +33,7 @@ struct gnode* fetch(struct gnode *first,char* _name){	//getter
 }
 
 //NOTICE : add this to  ---  type check
-struct gnode * fetch_arg(char * _func,char * _name){
+struct gnode * fetch_args(char * _func,char * _name){
 	struct gnode* temp = fetch(head,_func);
 	if(temp == NULL) {printf("undeclared func\n");exit(1);}
 	temp = fetch(temp->args,_name);
@@ -70,7 +71,7 @@ void print_locals(){
 	struct gnode * temp  = local_head;
 	printf("local_table : ");
 	while(temp){
-		printf("%s(%d) ",temp->name,temp->type );
+		printf("%s(%d-%d) ",temp->name,temp->type,temp->bind );
 		temp=temp->next;
 
 	}
@@ -90,7 +91,7 @@ void print_table(){
 			struct gnode * t = NULL;
 			t = temp->args;
 			while(t) {
-				printf("%s (%d) ," ,t->name,t->type);
+				printf("%s (%d)-%d ," ,t->name,t->type,t->bind);
 				t=t->next;
 			}
 			t = NULL;
