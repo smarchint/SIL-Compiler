@@ -4,7 +4,7 @@
 	#include <string.h>
 	int lineno=1;
 	int n,TypeFlag=1; 			//typeflag default to okay ie., every thing's fine
-	
+	//int BringTon = 200000;
 	#define DUMMY "Dummy"
 	#define _Varlist 12
 	#define _StmtList 13
@@ -27,6 +27,9 @@
 	#define _junc 45
 	#define HEAD 1
 	#define L_HEAD 0
+	#define _body 46
+	#define _ExpList 47
+	#define _main 48
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
@@ -37,7 +40,9 @@
 	//reg call count
 	int regCallCount = 0;
 
-	int regStack[8];
+	int regStack[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
+	
+
 	//for label generation
 	int Label=0;
 
@@ -62,6 +67,9 @@
 	void push_list(struct node * nd);
 	void pop_list(struct node * nd);
 	void func_code_gen(int i,struct node * nd);
+	void err_arg(int i,struct node * nd);
+	void bind_func_locals(struct node * nd);
+	void bind_locals(int i,struct node * nd);
 
 %}
 
@@ -97,7 +105,7 @@
 %type <ptr> Program  Mainblock
 %type <ptr> StmtList  Stmt Expr
 %type <ptr>  Var ArgList Arg List 
-%type <ptr> FdefList Fdef
+%type <ptr> FdefList Fdef Body ExpList
 %type <ptr> LDefblock LDefList LDecl  LIdList retExp
 %type <ptr> GDefblock GDefList GIdList GDecl GId
 
@@ -122,9 +130,13 @@ Program: GDefblock FdefList Mainblock	{
 										
 										print_table();
 										func_code_gen(-1,$2);
+										
 										int foo = fprintf(fp,"START\n");
+										fprintf(fp,"MOV BP, %d\n",LocNo-1);
+										fprintf(fp,"MOV SP,BP\n");
 										CodeGen($3);
 										foo = fprintf(fp,"HALT");
+
 										int z= fclose(fp);
 										print_table();
 										exit(1);
@@ -184,10 +196,13 @@ FdefList : FdefList Fdef 	{$$ = makenode($1,$2,_Fdeflist,0,"Fdeflist");}
 		| Fdef 				{$$ = makenode(NULL,$1,_Fdeflist,0,"Fdeflist");}
 		;
  
+Body : StmtList retExp 	{$$ = makenode($1,$2,_body,0,"Body");}
+	|	retExp			{$$ = makenode(NULL,$1,_body,0,"Body");}
+	;
 
-Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'  
+Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'  
 							{	/*MOD : Fdef  <-- stmtlist     (improves tree)*/
-								ret_check(0,$10);
+								ret_check(0,$9->right);
 								
 								struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
@@ -198,9 +213,9 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
 								flush_local();
 							}
 
-	 | GBOOL ID '(' ArgList')' '{' LDefblock SILBEGIN StmtList retExp END  '}' 
+	 | GBOOL ID '(' ArgList')' '{' LDefblock SILBEGIN Body END  '}' 
 							{	
-								ret_check(1,$10);
+								ret_check(1,$9->right);
 
 								struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
@@ -211,29 +226,29 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
 								flush_local();
 							}
 
-	 | GINT ID  '('  ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
+	 | GINT ID  '('  ')' '{' LDefblock SILBEGIN  Body END  '}'
 	 						{
-	 							ret_check(0,$9);
+	 							ret_check(0,$8->right);
 
 	 							struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
 
 	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
-	 							int t = func_check1(0,$2,NULL); 	//error may be here
+	 							int t = func_check1(0,$2,NULL); 
 								if(t !=-1  ) {getline();TypeFlag=0;}
 								flush_local();
 
 	 						}
 
-	 | GBOOL ID '('  ')' '{' LDefblock SILBEGIN StmtList retExp END  '}'
+	 | GBOOL ID '('  ')' '{' LDefblock SILBEGIN Body END  '}'
 	 						{
-	 							ret_check(1,$9);
+	 							ret_check(1,$8->right);
 
 	 							struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
 
 	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
-	 							int t = func_check1(1,$2,NULL);		//error may be here(null in args)
+	 							int t = func_check1(1,$2,NULL);		
 								if(t !=-1  ) {getline();TypeFlag=0;}
 								flush_local();
 							}
@@ -256,8 +271,10 @@ LIdList : LIdList ',' ID 	{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_LIdList
 		| ID 				{$$ = makenode(NULL,makenode(NULL,NULL,ID,0,$1),_LIdList,0,DUMMY);}
 		;	
 
-Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList retExp END  '}'	{$$ = $5;
+Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList retExp END  '}'	{$$ = $5;//BP = LocNo -1; SP = BP;
 																	flush_local();ret_check(0,$6);
+																	bind_locals(-1,$3);			//generate local_table for main
+																	bind_func_locals($$);
 																	}
 		|  MAIN  '{'  SILBEGIN StmtList retExp END  '}'	{$$ = $4;
 													flush_local();ret_check(0,$5);
@@ -294,26 +311,31 @@ Stmt : WRITE '(' Expr ')' ';'
 
 
 
-Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY);}
-		| Expr '>' Expr    	{$$=makenode($1,$3,'>',0,DUMMY);}
-		| Expr GE Expr   	{$$=makenode($1,$3,GE,0,DUMMY);	}
-		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);	}	
-		| Expr NE Expr   	{$$=makenode($1,$3,NE,0,DUMMY);	}
-		| Expr EQEQ Expr   	{$$=makenode($1,$3,EQEQ,0,DUMMY);}
-		| '!' Expr  		{$$=makenode($2,NULL,NOT,0,DUMMY);}
-		| Expr AND Expr		{$$=makenode($1,$3,AND,0,DUMMY);}
-		| Expr OR Expr		{$$=makenode($1,$3,OR,0,DUMMY);}
+Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY); err_arg(1,$$);}
+		| Expr '>' Expr    	{$$=makenode($1,$3,'>',0,DUMMY); err_arg(1,$$);}
+		| Expr GE Expr   	{$$=makenode($1,$3,GE,0,DUMMY);	 err_arg(1,$$);}
+		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);	 err_arg(1,$$);}	
+		| Expr NE Expr   	{$$=makenode($1,$3,NE,0,DUMMY);	 err_arg(1,$$);}
+		| Expr EQEQ Expr   	{$$=makenode($1,$3,EQEQ,0,DUMMY);err_arg(1,$$);}
+		| '!' Expr  		{$$=makenode($2,NULL,NOT,0,DUMMY);err_arg(1,$$);}
+		| Expr AND Expr		{$$=makenode($1,$3,AND,0,DUMMY); err_arg(1,$$);}
+		| Expr OR Expr		{$$=makenode($1,$3,OR,0,DUMMY);	 err_arg(1,$$);}
+
 		| TRUE				{$$=makenode(NULL,NULL,_Truth,TRUE,DUMMY);} 
 		| FALSE				{$$=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
-		| Expr '+' Expr		{$$=makenode($1,$3,'+',0,DUMMY); }
-		| Expr '-' Expr		{$$=makenode($1,$3,'-',0,DUMMY); }
-		| Expr '*' Expr		{$$=makenode($1,$3,'*',0,DUMMY); }
-		| Expr '/' Expr		{$$=makenode($1,$3,'/',0,DUMMY); }
-		| Expr '%' Expr		{$$=makenode($1,$3,_mod,0,DUMMY);}
+
+		| Expr '+' Expr		{$$=makenode($1,$3,'+',0,DUMMY); err_arg(0,$$);}
+		| Expr '-' Expr		{$$=makenode($1,$3,'-',0,DUMMY); err_arg(0,$$);}
+		| Expr '*' Expr		{$$=makenode($1,$3,'*',0,DUMMY); err_arg(0,$$);}
+		| Expr '/' Expr		{$$=makenode($1,$3,'/',0,DUMMY); err_arg(0,$$);}
+		| Expr '%' Expr		{$$=makenode($1,$3,_mod,0,DUMMY);err_arg(0,$$);}
 		| INT 				{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
 		| Var   			{$$ = $1;}
-		| ID '(' List ')'	{$$ = makenode($3,NULL,FUNC,0,$1);}
+		| ID '(' ExpList ')'	{$$ = makenode($3,NULL,FUNC,0,$1);}
 		| ID '('  	  ')'	{$$ = makenode(NULL,NULL,FUNC,0,$1);}
+		;
+ExpList : ExpList ',' Expr  {$$ =makenode($1,$3,_ExpList,0,"ExpList");}
+		|	Expr 			{$$ =makenode(NULL,$1,_ExpList,0,"ExpList");}
 		;
 
 Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
@@ -399,6 +421,47 @@ int func_check1(int return_type,char *name,struct node *nd){
 //NOTE : ADD func local table at codegen part 
 
 //+=======================================================================================================
+//helper for list_checker
+
+int getType(struct node * nd){
+	switch(nd->flag){
+
+		case ID : 	{
+						struct gnode * temp = fetch(local_head,nd->varname);
+						if(temp == NULL) temp = fetch(head,nd->varname);
+						if(temp == NULL) {getline();printf("Undeclared var\n");exit(1);}
+						return temp->type;
+					}
+
+		case ARRAY : {
+						struct gnode * temp = fetch(head,nd->varname);
+						if(temp == NULL) {getline();printf("Undeclared array\n");exit(1);}
+						return temp->type; 
+					}	
+		case '<' :
+		case '>' : 
+		case GE :
+		case LE :
+		case NE :
+		case EQEQ:
+		case NOT :
+		case AND :
+		case OR :
+		case _Truth :return 1;
+		case '+':
+		case '-':
+		case '%':
+		case '*':
+		case INT : 
+		case '/':return 0;
+		case FUNC : {getline();printf("Func cannot be in arguments\n");exit(1);}
+
+	}
+
+
+}
+
+
 
 //temp2 is global node pointer associated with list_checker func only
 struct gnode * temp2;
@@ -413,17 +476,10 @@ int list_checker(struct node * nd){
 	if(nd->right){
 		int t1 = 0;//strcmp(nd->right->varname,temp2->name);
 		//or coulg only check  the type
-
-		struct gnode * tt;
-		tt= fetch(local_head,nd->right->varname);
-
-		if(tt == NULL) {tt = fetch(head,nd->right->varname);}
-		
-		if(tt == NULL) {getline();printf("argument is invalid\n");exit(1);}
-		
-		if(t1!=0 || (temp2->type != tt->type )) {
+		int typ = getType(nd->right);
+		if(t1!=0 || (temp2->type != typ)) {
 			getline();
-			printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp2->type,nd->right->varname,tt->type);
+			printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp2->type,nd->right->varname,typ);
 			exit(1);
 		}
 		
@@ -539,6 +595,15 @@ int type_check2(struct node * nd ){ // -1 is good sign , -2 is bad
 		
 	}
 
+}
+
+void err_arg(int flag,struct node * nd){
+	if(type_check2(nd)!=flag ){
+		getline();
+		printf("Error in exp in arguments\n");
+		exit(1);
+	}
+	return;
 }
 //CODE GENERATION PART=================================================================
 
@@ -736,28 +801,32 @@ void printRegStack(){	//needn't touch
 	printf("( %d )regStack : ",regCallCount);
 	int i;
 	for( i=0;i<8;i++){
-		if(regStack[i]==0 && i >0) break;
+		if(regStack[i]==-1 ) break;
 		printf("%d ",regStack[i]);
 	}
 	printf("\n");
+
 }
 
-int getLoc(char * varname){	//fetch  arguments in local_head
-
-	struct gnode * temp;
-	
-	temp = fetch(local_head,varname);
-	
-	if(temp) return (BP + temp->bind);
-	
-	else temp = fetch(head,varname);
-
-	return temp->bind;	//global
-}
-
+void freeReg(int r,struct node * nd){	
+//if reg r at top of reg stack the remove else return error
+	//if(r==0) {printRegStack();return;}
+	if(r < 0) {getline();printf("cannot free get whe all are free \n");exit(1);}
+	if(r==RegNo)
+	{RegNo--;
+		regStack[RegNo+1]=-1;
+		printRegStack();}
+	else{
+		printf("%d cannot happen reg(%d) ",lineno,r);
+		if(nd)
+		printf("at %d\n",nd->flag);
+		if(nd->left) printf(": l(%d)  ",nd->left->flag);
+		if(nd->right) printf(": r(%d) ",nd->right->flag);
+		printf("\n");
+	}
+}	
 
 int getReg(){
-//Suggestion : Add error msg if RegNo exceeds 7
 	
 	RegNo++;
 	if(RegNo >7) {
@@ -775,32 +844,48 @@ int getReg(){
 	return r;
 }
 
-void freeReg(int r,struct node * nd){	
-//if reg r at top of reg stack the remove else return error
-	if(r==0) {printRegStack();return;}
-	if(r==RegNo)
-	{RegNo--;
-		regStack[RegNo+1]=0;
-		printRegStack();}
-	else{
-		printf("%d cannot happen reg(%d)  at %d ",lineno,r,nd->flag);
-		if(nd->left) printf(": l(%d)  ",nd->left->flag);
-		if(nd->right) printf(": r(%d) ",nd->right->flag);
-		printf("\n");
+
+int getLoc(char * varname){	//gets loc of a var in a reg
+
+	struct gnode * temp;
+	
+	temp = fetch(local_head,varname);
+	
+	if(temp) {
+		int loc = temp->bind;							//local
+		int r1 =getReg();
+		int r2 = getReg();
+		fprintf(fp,"MOV R%d,BP\n",r1);
+		fprintf(fp,"MOV R%d,%d\n",r2,loc);			
+		fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+		freeReg(r2,NULL);
+		return r1;
 	}
-}	
+	
+	else temp = fetch(head,varname);	//fetch in  global tab
+
+	if(temp) {
+		int loc = temp->bind;
+		int r = getReg();
+		fprintf(fp, "MOV R%d,%d\n",r,loc);
+		return r;
+	}
+}
+int isLocGlobal(int i){
+	if(i>=200000) return 1;
+	else return 0;
+}
+
+
+
 
 int getLocArray(struct node * nd){
 	
 	int r = CodeGen(nd->left);
 
-	int loc = getLoc(nd->varname);
+	int r1 = getLoc(nd->varname);
 
-	int r1 = getReg();
-
-	int foo = fprintf(fp,"MOV R%d,%d\n",r1,loc);	//mov r1 loc
-
-	foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);//add r + r1	
+	int foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);//add r + r1	
 
 	freeReg(r1 , nd);
 
@@ -879,9 +964,26 @@ void bind_locals(int i,struct node * nd){
 
 	return ;
 }
+//_____________________________________________
+//helper to func_code_gen
+//binds func locals in memory
+void bind_func_locals(struct node * nd){
+	if(local_head){
+		int r = getReg();
+		fprintf(fp,"MOV R%d, 0\n",r);	//init all locals as 0
+		print_locals();
+		int m = local_head->bind; printf("val is impoertantianno %d\n", m);
+		int  i=0;
+		while(i<m){
+			fprintf(fp,"PUSH R%d\n",i);
+			i=i+1;
+		}
+		freeReg(r,nd);
+		//print_locals();
 
-
-
+		printf("say hi to me now\n");
+	}
+}
 //ADD : label to func  in gsymtab
 
 void func_code_gen(int i,struct node * nd){
@@ -893,39 +995,29 @@ void func_code_gen(int i,struct node * nd){
 							func_code_gen(i,nd->right);	
 							break;
 						}
+		case _main:
 		case _Fdef : {
 						//make the local table then generate the code
 
-						flush_local();
+						
 						printf("------Visting : %s\n",nd->varname);
 
 						fprintf(fp,"L%d:\n",nd->val);
-
+						if(nd->flag != _main)
 						fprintf(fp,"PUSH BP\n");
 						fprintf(fp,"MOV BP,SP\n");
-						agcount = 1;		//for local vars
-						nastyCount = -3;  //for the sake of arguments -- do you get it?
+						agcount = 1;			//for local vars
+						nastyCount = -3;  		//for the sake of arguments -- do you get it?
 						install_args_to_locals(-1,nd->right->left);
 						bind_locals(-1,nd->right->right);
 						printf("safty check ");print_locals();
 						//by looking the first (last entered var in local sym tab inc the sp i.e push a reg)
-						if(local_head){
-							int r = getReg();
-							fprintf(fp,"MOV R%d, 0",r);	//init all locals as 0
-							
-							int m = local_head->bind; printf("val is impoertantianno %d\n", m);
-							int  i=0;
-							while(i<m){
-								fprintf(fp,"PUSH R%d",r);
-								i=i+1;
-							}
-							freeReg(r,nd);
-							//print_locals();
+						bind_func_locals(nd);		//stack manip
+						int r = CodeGen(nd->left);
 
-							printf("say hi to me now\n");
-						}
-						CodeGen(nd->left);
-						break;
+						//freeReg(r,nd);
+						flush_local();
+						break;	
 						}
 
 	}
@@ -947,6 +1039,8 @@ int CodeGen(struct node *nd){
 
 	switch(nd->flag){
 
+		case _body : {CodeGen(nd->left);CodeGen(nd->right);break;}
+
 		case _Truth : 
 					{ int value = 0 ; if(nd->val == TRUE) value =1;
 					  int r = getReg();
@@ -962,11 +1056,14 @@ int CodeGen(struct node *nd){
 
 					break;} 
 
+		//club ID and Array
 		case ID :	{int r = getReg();
 					
-					int loc = getLoc(nd->varname);
-					
-					int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+					int r1 = getLoc(nd->varname);
+
+					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);
+
+					freeReg(r1,nd);
 					
 					return r;
 					
@@ -1003,10 +1100,13 @@ int CodeGen(struct node *nd){
 					{int r = CodeGen(nd->right);				//right part of =
 
 					if(nd->left->flag == ID){
-						int loc = getLoc(nd->left->varname);
-
-						int foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
 						
+						int r1 = getLoc(nd->left->varname);
+
+						fprintf(fp,"MOV [R%d], R%d\n",r1,r);
+
+						freeReg(r1,nd);
+
 						freeReg(r,nd);
 
 						return -1;
@@ -1052,11 +1152,13 @@ int CodeGen(struct node *nd){
 
 						int foo = fprintf(fp,"IN R%d\n",r);
 
-						int loc = getLoc(nd->left->varname);
+						int r1 = getLoc(nd->left->varname);
 
 						//printf("name : %s\n",nd->left->varname);
 						
-						foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
+						foo = fprintf(fp,"MOV [R%d],R%d\n",r1,r);
+
+						freeReg(r1,nd);
 
 						freeReg(r,nd);
 
@@ -1187,29 +1289,33 @@ int CodeGen(struct node *nd){
 
 		case FUNC : {	//ADD : improve this point geta reg free it 
 						//		 in this process you will get the max reg in use
+						int r = getReg();
+						freeReg(r,nd);
+
 						int i = 0;
-						while(i<8){
-							fprintf(fp, "PUSH R%d\n",i );\
+						while(i<r){
+							fprintf(fp, "PUSH R%d\n",i );
 							i=i+1;
 						}
 						
 						push_list(nd->left);
 
-						int r = getReg();
+						r = getReg();
 						fprintf(fp, "PUSH R%d\n", r); //return add
 						freeReg(r,nd);
 						int lab = getFuncLabel(nd->varname);
 						
+						//CALL the function
 						fprintf(fp,"CALL L%d\n",lab);
 
 						r = getReg();
-						fprintf(fp,"POP R%d",r);	//	r == return val i guess
+						fprintf(fp,"POP R%d\n",r);	//	r == return val i guess
 						
 
 						pop_list(nd->left);
 
 						//something's fishy here : how to store return value
-						i=7;
+						i=r-1;
 						while(i>=0){
 							if (i!=r)
 							fprintf(fp,"POP R%d\n",i);
@@ -1222,11 +1328,21 @@ int CodeGen(struct node *nd){
 
 		case RET : {
 						int r = CodeGen(nd->left);
-						fprintf(fp, "MOV [BP - 2], R%d\n",r );
+						int r1 = getReg();
+						int  r2 = getReg();
+						fprintf(fp,"MOV R%d,2\n",r2);
+						fprintf(fp,"MOV R%d,BP\n",r1);
+						fprintf(fp,"SUB R%d,R%d\n",r1,r2);
+						fprintf(fp,"MOV [R%d],R%d\n",r1,r);
+						//fprintf(fp, "MOV [BP - 2], R%d\n",r );
+						freeReg(r2,nd);
+						freeReg(r1,nd);
 						freeReg(r,nd);
 						fprintf(fp, "MOV SP,BP\n");
 						fprintf(fp,"MOV BP,[BP]\n");
-						fprintf(fp,"RET");
+						fprintf(fp,"RET\n");
+						return -1;
+
 
 					}
 
@@ -1244,6 +1360,7 @@ void push_list(struct node * nd){
 
 	//this sequence is important and arg names must match exactly
 
+	//pusing the value only (change the strat for pointers)
 	int r = CodeGen(nd->right);
 
 	fprintf(fp,"PUSH R%d\n",r);
@@ -1251,7 +1368,6 @@ void push_list(struct node * nd){
 	freeReg(r,nd->right);
 
 	push_list(nd->left);
-
 
 	return;
 }

@@ -1,39 +1,39 @@
 decl
-	Integer a,b,c,arr[10],temp,i,j; 
+	Integer a,b,c,arr[10],add(Integer a,b); 
 	bool d,e,f; 
 enddecl
 
-main(){
-decl
-	Integer sdfd;
+
+
+Integer add(Integer a,b){
+decl	
+	Integer temp;
+	bool tf;
 enddecl
 begin
-	a=1;b=2;c=3;
-	i=0;
-	while(i<5)do
-		read(arr[i]);
-		i=i+1;
-	endwhile;
-	i=0;
-	j=0;	
-	while(i<4)do
-		j=i+1;
-		while(j<5)do
-			if(arr[i]>arr[j])then
-				temp=arr[j];
-				arr[j]=arr[i];
-				arr[i]=temp;
-			endif;
-			j=j+1;
-		endwhile;
-		i=i+1;
-	endwhile;
-	i=0;
-	while(i<5)do
-		write(arr[i]);
-		i=i+1;
-	endwhile;
-	write(a+b*c);
+	write(111);
+	temp = a+b;
+	return temp;
+end
+}
+
+
+
+
+
+main(){
+decl
+	Integer a,b;
+	bool d,g;
+enddecl
+begin
+	a=200;
+	b=250;
+	write(112);
+	c = add(a,b);
+	write(c);
+	write(113);
+	return 0;
 end
 
 }

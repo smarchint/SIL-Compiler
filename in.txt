@@ -1,5 +1,5 @@
 decl
-	Integer a,b,c,d,i,j,n,sum,k,arr[10],temp,foo(Integer a1,b2);
+	Integer a,b,c,d,i,j,n,sum,k,arr[10],temp,foo(Integer a1,b2), add(Integer a,b);
 	bool foo2(),bar(bool i,j,k);
 enddecl
 
@@ -13,7 +13,7 @@ Integer foo(Integer a1,b2){
 
 		a1=1;
 		b=1;
-		write(10000);
+		write(45600);
 		return 234;
 	end
 }
@@ -39,11 +39,22 @@ bool foo2(){
 		a= 1;
 		a=1;
 		b=1;
+		f1 = bar(d1,e1,True);
 		write(10000);
 		return d1;
 	end
 }
+Integer add	(Integer a,b){
+	decl
+		Integer temp;
+	enddecl
 
+	begin
+		a=a;
+		return a+b;
+	end
+
+}
 
 main(){
 decl
@@ -68,8 +79,7 @@ begin
 		endwhile;
 		i=i+1;	
 	endwhile;
-
-	
+	sum = add(a,a);
 	write(sum);
 
 	return 0;
