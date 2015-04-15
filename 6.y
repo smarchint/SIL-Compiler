@@ -71,6 +71,8 @@
 	void bind_func_locals(struct node * nd);
 	void bind_locals(int i,struct node * nd);
 
+
+
 %}
 
 
@@ -126,10 +128,12 @@ Program: GDefblock FdefList Mainblock	{
 									//print_table();
 									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
 									else{
-										fp= fopen("outfile.txt","w+");
+										
 										
 										print_table();
-										func_code_gen(-1,$2);
+										
+										///*
+										//func_code_gen(-1,$2);
 										
 										int foo = fprintf(fp,"START\n");
 										fprintf(fp,"MOV BP, %d\n",LocNo-1);
@@ -137,6 +141,8 @@ Program: GDefblock FdefList Mainblock	{
 										fprintf(fp,"MOV SP,BP\n");
 										//bind_locals(-1,);
 										CodeGen($3);
+										
+										//*/
 										foo = fprintf(fp,"HALT");
 
 										int z= fclose(fp);
@@ -159,7 +165,7 @@ Program: GDefblock FdefList Mainblock	{
 								}
 	;
 
-GDefblock : DECL GDefList ENDDECL	{$$=$2;}
+GDefblock : DECL GDefList ENDDECL	{$$=$2;fp= fopen("outfile.txt","w+");}
 		;
 
 GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
@@ -204,54 +210,72 @@ Body : StmtList retExp 	{$$ = makenode($1,$2,_body,0,"Body");}
 
 Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'  
 							{	/*MOD : Fdef  <-- stmtlist     (improves tree)*/
+								//flush_local();
 								ret_check(0,$9->right);
 								
+								int t = func_check1(0,$2,$4);
+								if(t !=-1  ) {getline();TypeFlag=0;}
+
+
 								struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
 								
 								$$ = makenode($9,makenode($4,$7,_junc,0,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
-								int t = func_check1(0,$2,$4);
-								if(t !=-1  ) {getline();TypeFlag=0;}
+								func_code_gen(0,$$);
 								flush_local();
 							}
 
 	 | GBOOL ID '(' ArgList')' '{' LDefblock SILBEGIN Body END  '}' 
 							{	
+								//flush_local();
 								ret_check(1,$9->right);
+
+								int t = func_check1(1,$2,$4);
+								if(t !=-1  ) {getline();TypeFlag=0;}
 
 								struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
 
 								$$ = makenode($9,makenode($4,$7,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
-								int t = func_check1(1,$2,$4);
-								if(t !=-1  ) {getline();TypeFlag=0;}
+								func_code_gen(1,$$);
+
 								flush_local();
 							}
 
 	 | GINT ID  '('  ')' '{' LDefblock SILBEGIN  Body END  '}'
 	 						{
+	 							//flush_local();
 	 							ret_check(0,$8->right);
+
+	 							int t = func_check1(0,$2,NULL); 
+								if(t !=-1  ) {getline();TypeFlag=0;}
 
 	 							struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
 
 	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
-	 							int t = func_check1(0,$2,NULL); 
-								if(t !=-1  ) {getline();TypeFlag=0;}
+	 							
+	 							func_code_gen(0,$$);
+
 								flush_local();
 
 	 						}
 
 	 | GBOOL ID '('  ')' '{' LDefblock SILBEGIN Body END  '}'
 	 						{
+	 							//flush_local();
 	 							ret_check(1,$8->right);
+
+	 							int t = func_check1(1,$2,NULL);		
+								if(t !=-1  ) {getline();TypeFlag=0;}
 
 	 							struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
 
 	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
-	 							int t = func_check1(1,$2,NULL);		
-								if(t !=-1  ) {getline();TypeFlag=0;}
+	 							
+	 							func_code_gen(1,$$);
+
 								flush_local();
 							}
 	 ;
@@ -259,7 +283,7 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'
 retExp : RET Expr ';'  {$$ = makenode($2,NULL,RET,0,DUMMY);}
 		;
 
-LDefblock 	: DECL LDefList ENDDECL   {$$ = $2;evalDecl(L_HEAD,$2,0,DUMMY);print_locals();}
+LDefblock 	: DECL LDefList ENDDECL   {$$ = $2;evalDecl(L_HEAD,$2,0,DUMMY);}
 
 LDefList	:LDefList LDecl {$$ = makenode($1,$2,_LDefList,0,"LDefList");}
 			| LDecl			{$$ = makenode(NULL,$1,_LDefList,0,"LDefList");}
@@ -694,6 +718,7 @@ void install_local_var(struct node *nd,int i){
 	temp->name = nd->varname;
 	temp->type = i;
 	temp->args = NULL;
+	temp->bind = -100;
 	//temp->local =NULL;
 
 	temp->next = local_head;
@@ -814,13 +839,15 @@ void printRegStack(){	//needn't touch
 void freeReg(int r,struct node * nd){	
 //if reg r at top of reg stack the remove else return error
 	//if(r==0) {printRegStack();return;}
-	if(r < 0) {getline();printf("cannot free get whe all are free \n");exit(1);}
+	if(r < 	0) {getline();printf("cannot free get whe all are free \n");exit(1);}
+	if (RegNo < 0) {getline(); printf("attempt to free reg at -1\n");exit(1);}
 	if(r==RegNo)
 	{RegNo--;
 		regStack[RegNo+1]=-1;
 		printRegStack();}
 	else{
-		printf("%d cannot happen reg(%d) ",lineno,r);
+		printf("%d cannot happen reg(%d) - %d",lineno,r,RegNo);
+		//fprintf(fp,"Douche bag\n");
 		if(nd)
 		printf("at %d\n",nd->flag);
 		if(nd->left) printf(": l(%d)  ",nd->left->flag);
@@ -849,19 +876,21 @@ int getReg(){
 
 
 int getLoc(char * varname){	//gets loc of a var in a reg
-
+	//printf("Getloc -- started\n");
 	struct gnode * temp;
-	
+
 	temp = fetch(local_head,varname);
 	
 	if(temp) {
+		//printf("found at loc %s\n",temp->name);
 		int loc = temp->bind;							//local
-		int r1 =getReg();
+		int r1 = getReg();
 		int r2 = getReg();
 		fprintf(fp,"MOV R%d,BP\n",r1);
 		fprintf(fp,"MOV R%d,%d\n",r2,loc);			
 		fprintf(fp,"ADD R%d,R%d\n",r1,r2);
 		freeReg(r2,NULL);
+		//printf("Getloc -- ended\n");
 		return r1;
 	}
 	
@@ -871,8 +900,11 @@ int getLoc(char * varname){	//gets loc of a var in a reg
 		int loc = temp->bind;
 		int r = getReg();
 		fprintf(fp, "MOV R%d,%d\n",r,loc);
+		//printf("Getloc -- ended\n");
 		return r;
 	}
+	if(temp == NULL) {getline();printf("Local symbol table -- biscuit\n");exit(1);}
+	//printf("saikumar");
 }
 int isLocGlobal(int i){
 	if(i>=200000) return 1;
@@ -972,17 +1004,27 @@ void bind_locals(int i,struct node * nd){
 //binds func locals in memory
 void bind_func_locals(struct node * nd){
 	if(local_head){
+		int m = local_head->bind; printf("val is impoertantianno %d\n", m);
+		///*
 		int r = getReg();
 		fprintf(fp,"MOV R%d, 0\n",r);	//init all locals as 0
 		print_locals();
-		int m = local_head->bind; printf("val is impoertantianno %d\n", m);
+		
+		
 		int  i=0;
-		while(i<m){
-			fprintf(fp,"PUSH R%d\n",i);
+		while(i<m){			//CHANGE : this can be writtren as increasing sp only
+			fprintf(fp,"PUSH R%d\n",r);
 			i=i+1;
 		}
+		
 		freeReg(r,nd);
-		//print_locals();
+		//*/
+		/*
+		int r = getReg();
+		fprintf(fp, "MOV R%d,%d\n",r,m);
+		fprintf(fp,"MOV SP,R%d\n",r);
+		freeReg(r,nd);
+		*/
 
 		printf("say hi to me now\n");
 	}
@@ -1002,7 +1044,7 @@ void func_code_gen(int i,struct node * nd){
 		case _Fdef : {
 						//make the local table then generate the code
 
-						
+						flush_local();
 						printf("------Visting : %s\n",nd->varname);
 
 						fprintf(fp,"L%d:\n",nd->val);
@@ -1102,14 +1144,18 @@ int CodeGen(struct node *nd){
 		case '=' :	//one reg for returning remaining canbe disposed off
 					{int r = CodeGen(nd->right);				//right part of =
 
+						//fprintf(fp,"OUT R%d\n",r);
+					//printf("good  ");printRegStack();
 					if(nd->left->flag == ID){
 						
 						int r1 = getLoc(nd->left->varname);
+						//printf("Bad %d\n",r1);
 
 						fprintf(fp,"MOV [R%d], R%d\n",r1,r);
 
 						freeReg(r1,nd);
-						//printf("Error123\n");
+						//fprintf(fp,"num = %d\n",r1);
+						//fprintf(fp,"Error123\n");
 						freeReg(r,nd);
 
 						return -1;
@@ -1321,6 +1367,7 @@ int CodeGen(struct node *nd){
 						push_list(nd->left);
 
 						r = getReg();
+						//fprintf(fp,"OUTb saeeastasdsjgd\n",r);
 						fprintf(fp, "PUSH R%d\n", r); //return add
 						freeReg(r,nd);
 						int lab = getFuncLabel(nd->varname);
@@ -1337,10 +1384,11 @@ int CodeGen(struct node *nd){
 						//something's fishy here : how to store return value
 						i=r-1;
 						while(i>=0){
-							if (i!=r)
 							fprintf(fp,"POP R%d\n",i);
 							i--;
 						}
+
+
 
 						return r;
 

@@ -21,14 +21,17 @@ end
 
 main(){
 decl
-	Integer a;
+	Integer a,i;
 enddecl
 begin
+	i=2;
+	write(fact(i));
 
-	a = fact(2);
-	write(a);
-	write(a+1);
-	a= fact(4+1);
+	while(i>10)do
+		write(fact(i));
+		i = i+1;
+	endwhile;
+
 	write(1000001);
 	return 0;
 end
