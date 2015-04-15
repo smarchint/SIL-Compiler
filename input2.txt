@@ -1,38 +1,35 @@
 decl
-	Integer a,b,c,arr[10],add(Integer a,b); 
-	bool d,e,f; 
+	Integer fact(Integer n); 
 enddecl
 
 
-
-Integer add(Integer a,b){
+Integer fact(Integer n){
 decl	
-	Integer temp;
-	bool tf;
+	Integer temp,rval;
 enddecl
 begin
-	write(111);
-	temp = a+b;
-	return temp;
+	
+	if (n <= 1) then
+		rval = 1;
+	else  
+		rval = n*fact(n-1);
+	endif;
+	return rval;
 end
 }
 
 
-
-
-
 main(){
 decl
-	Integer a,b;
-	bool d,g;
+	Integer a;
 enddecl
 begin
-	a=200;
-	b=250;
-	write(112);
-	c = add(a,b);
-	write(c);
-	write(113);
+
+	a = fact(2);
+	write(a);
+	write(a+1);
+	a= fact(4+1);
+	write(1000001);
 	return 0;
 end
 

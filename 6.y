@@ -133,7 +133,9 @@ Program: GDefblock FdefList Mainblock	{
 										
 										int foo = fprintf(fp,"START\n");
 										fprintf(fp,"MOV BP, %d\n",LocNo-1);
+										printf("Initial BP is at %d\n",LocNo-1);
 										fprintf(fp,"MOV SP,BP\n");
+										//bind_locals(-1,);
 										CodeGen($3);
 										foo = fprintf(fp,"HALT");
 
@@ -274,6 +276,8 @@ LIdList : LIdList ',' ID 	{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_LIdList
 Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList retExp END  '}'	{$$ = $5;//BP = LocNo -1; SP = BP;
 																	flush_local();ret_check(0,$6);
 																	bind_locals(-1,$3);			//generate local_table for main
+																	printf("\nMAIN LOCAL TABLE \n");
+																	print_locals();
 																	bind_func_locals($$);
 																	}
 		|  MAIN  '{'  SILBEGIN StmtList retExp END  '}'	{$$ = $4;
@@ -552,7 +556,6 @@ int type_check2(struct node * nd ){ // -1 is good sign , -2 is bad
 		case WHILE: {int l = type_check2(nd->left); if (l == 1) return -1;return -2;}
 
 		case IF   :	{int l = type_check2(nd->left);if(l==1) return -1;return -2;}
-
 		case '<'  : 
 		case '>'  : 
 		case EQEQ :
@@ -1106,7 +1109,7 @@ int CodeGen(struct node *nd){
 						fprintf(fp,"MOV [R%d], R%d\n",r1,r);
 
 						freeReg(r1,nd);
-
+						//printf("Error123\n");
 						freeReg(r,nd);
 
 						return -1;
@@ -1185,20 +1188,30 @@ int CodeGen(struct node *nd){
 
 		case IF:{
 					int r  = CodeGen(nd->left);
-
+					int l;	//reserved for else part
 					int l1 = Label;
 					Label++;
 					int foo = fprintf(fp,"JZ R%d,L%d\n",r,l1);
+					freeReg(r,nd);
 
-					if(nd->right->flag == ELSE)	foo = CodeGen(nd->right->left);
+					if(nd->right->flag == ELSE)	{
+
+						foo = CodeGen(nd->right->left);
+						 l = Label;
+						Label++;
+						fprintf(fp, "JMP L%d\n",l);
+					}
 
 					else foo = CodeGen(nd->right);
 					
 					foo = fprintf(fp,"L%d: ",l1);
 
-					if(nd->right->flag == ELSE)	foo = CodeGen(nd->right->right);
+					if(nd->right->flag == ELSE)	{
+						foo = CodeGen(nd->right->right);
+						fprintf(fp, "L%d:\n",l );
+					}
 
-					freeReg(r,nd);
+					
 
 					return -1;
 				}
@@ -1273,13 +1286,15 @@ int CodeGen(struct node *nd){
 						Label++;
 						foo = fprintf(fp,"JZ R%d,L%d\n",r,l2);
 
+						freeReg(r,nd);
+
 						foo= CodeGen(nd->right);
 
 						 foo = fprintf(fp,"JMP L%d\n",l1);
 
 						 foo = fprintf(fp,"L%d:",l2);
 
-						 freeReg(r,nd);
+						 
 
 						 return -1;
 
@@ -1289,14 +1304,19 @@ int CodeGen(struct node *nd){
 
 		case FUNC : {	//ADD : improve this point geta reg free it 
 						//		 in this process you will get the max reg in use
+						//printf("Error0\n");
+						printf("Function call %s\n",nd->varname);
 						int r = getReg();
+						//printf("Error1\n");
 						freeReg(r,nd);
 
 						int i = 0;
+						
 						while(i<r){
 							fprintf(fp, "PUSH R%d\n",i );
 							i=i+1;
 						}
+						
 						
 						push_list(nd->left);
 
@@ -1304,14 +1324,14 @@ int CodeGen(struct node *nd){
 						fprintf(fp, "PUSH R%d\n", r); //return add
 						freeReg(r,nd);
 						int lab = getFuncLabel(nd->varname);
-						
+						//printf("Error2\n");
 						//CALL the function
 						fprintf(fp,"CALL L%d\n",lab);
 
 						r = getReg();
 						fprintf(fp,"POP R%d\n",r);	//	r == return val i guess
 						
-
+						//printf("Error3\n");
 						pop_list(nd->left);
 
 						//something's fishy here : how to store return value
@@ -1326,7 +1346,8 @@ int CodeGen(struct node *nd){
 
 					}
 
-		case RET : {
+		case RET : {	
+
 						int r = CodeGen(nd->left);
 						int r1 = getReg();
 						int  r2 = getReg();
@@ -1339,8 +1360,9 @@ int CodeGen(struct node *nd){
 						freeReg(r1,nd);
 						freeReg(r,nd);
 						fprintf(fp, "MOV SP,BP\n");
-						fprintf(fp,"MOV BP,[BP]\n");
+						fprintf(fp,"POP BP\n");
 						fprintf(fp,"RET\n");
+						printf("End of a function\n");
 						return -1;
 
 
