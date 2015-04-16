@@ -33,7 +33,7 @@
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
-	
+	int agcount =1;
 
 	//===GLOBAL VARIABLES used in codegen part
 
@@ -70,7 +70,7 @@
 	void err_arg(int i,struct node * nd);
 	void bind_func_locals(struct node * nd);
 	void bind_locals(int i,struct node * nd);
-
+	void freeReg(int r,struct node * nd);
 
 
 %}
@@ -136,9 +136,22 @@ Program: GDefblock FdefList Mainblock	{
 										//func_code_gen(-1,$2);
 										
 										int foo = fprintf(fp,"START\n");
+										///fprintf(fp,"MOV BP, 0\n");
+										//fprintf(fp, "MOV SP,BP\n" );
 										fprintf(fp,"MOV BP, %d\n",LocNo-1);
-										printf("Initial BP is at %d\n",LocNo-1);
 										fprintf(fp,"MOV SP,BP\n");
+										printf("Initial BP is at %d\n",LocNo-1);
+										//fprintf(fp,"PUSH BP\n");
+										int m = local_head->bind;
+										int r = getReg();
+										int r1 = getReg();
+										fprintf(fp, "MOV R%d,%d\n",r,m );
+										fprintf(fp, "MOV R%d,SP\n",r1 );
+										fprintf(fp, "ADD R%d,R%d\n",r,r1 );
+										fprintf(fp,"MOV SP,R%d\n",r);
+										freeReg(r1,NULL);
+										freeReg(r,NULL);
+
 										//bind_locals(-1,);
 										CodeGen($3);
 										
@@ -159,7 +172,7 @@ Program: GDefblock FdefList Mainblock	{
 										CodeGen($2);
 										foo = fprintf(fp,"HALT");
 										int z= fclose(fp);
-										print_table();
+											print_table();
 										exit(1);
 									}
 								}
@@ -299,6 +312,7 @@ LIdList : LIdList ',' ID 	{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_LIdList
 
 Mainblock : MAIN  '{' LDefblock SILBEGIN StmtList retExp END  '}'	{$$ = $5;//BP = LocNo -1; SP = BP;
 																	flush_local();ret_check(0,$6);
+																	agcount = 1;
 																	bind_locals(-1,$3);			//generate local_table for main
 																	printf("\nMAIN LOCAL TABLE \n");
 																	print_locals();
@@ -976,7 +990,7 @@ void foo2(int i, char * _name,int count){
 
 }
 
-int agcount =1;
+
 void bind_locals(int i,struct node * nd){
 	//binds local to mem relative to bp 
 
@@ -1321,6 +1335,7 @@ int CodeGen(struct node *nd){
 					}
 
 		case WHILE :{
+						//fprintf(fp, "WHILE start------\n");
 						int l1 = Label;
 						Label++;
 
@@ -1336,15 +1351,15 @@ int CodeGen(struct node *nd){
 
 						foo= CodeGen(nd->right);
 
-						 foo = fprintf(fp,"JMP L%d\n",l1);
+						foo = fprintf(fp,"JMP L%d\n",l1);
 
-						 foo = fprintf(fp,"L%d:",l2);
+						foo = fprintf(fp,"L%d:",l2);
 
-						 
+						//fprintf(fp, "WHILE end--------\n" );
 
-						 return -1;
+						return -1;
 
-						 break;
+						break;
 
 					}
 
@@ -1355,13 +1370,15 @@ int CodeGen(struct node *nd){
 						int r = getReg();
 						//printf("Error1\n");
 						freeReg(r,nd);
-
+						printf("last free reg : %d\n",r-1);
 						int i = 0;
 						
 						while(i<r){
 							fprintf(fp, "PUSH R%d\n",i );
+							//freeReg(i,nd);
 							i=i+1;
 						}
+						//free the regs
 						
 						
 						push_list(nd->left);
@@ -1382,13 +1399,18 @@ int CodeGen(struct node *nd){
 						pop_list(nd->left);
 
 						//something's fishy here : how to store return value
+						/*
+						i =0 ;
+						while(i<r){
+							int t = getReg();
+							i = i+1;
+						}
+						*/
 						i=r-1;
 						while(i>=0){
 							fprintf(fp,"POP R%d\n",i);
 							i--;
 						}
-
-
 
 						return r;
 

@@ -1,5 +1,5 @@
 decl
-	Integer fact(Integer n); 
+	Integer j,fact(Integer n),foo(); 
 enddecl
 
 
@@ -8,30 +8,44 @@ decl
 	Integer temp,rval;
 enddecl
 begin
-	
+
 	if (n <= 1) then
 		rval = 1;
-	else  
+	else
 		rval = n*fact(n-1);
 	endif;
 	return rval;
 end
 }
 
-
-main(){
+Integer foo(){
 decl
-	Integer a,i;
+	Integer i,j;
 enddecl
 begin
 	i=2;
-	write(fact(i));
-
-	while(i>10)do
-		write(fact(i));
-		i = i+1;
+	j=2;
+	while(j<10)do
+		write(fact(j));
+		j=j+1;
 	endwhile;
+	write(fact(4));
 
+	return 0;
+end
+}
+
+main(){
+decl
+	Integer a,i,j;
+enddecl
+begin
+	i=2;
+	j=2;
+	while(j<5)do
+		write(fact(j));
+		j=j+1;
+	endwhile;
 	write(1000001);
 	return 0;
 end
