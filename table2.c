@@ -52,6 +52,7 @@ void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
 		temp=(struct gnode *)malloc(sizeof(struct  gnode));
 		temp->name=_name;
 		temp->size=_size;
+		
 		temp->type=_type;
 		temp->bind=_loc;
 		temp->args = NULL;

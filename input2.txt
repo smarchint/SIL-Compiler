@@ -42,7 +42,7 @@ enddecl
 begin
 	i=2;
 	j=2;
-	while(j<5)do
+	while(j<10)do
 		write(fact(j));
 		j=j+1;
 	endwhile;
