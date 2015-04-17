@@ -1,5 +1,5 @@
 decl
-	Integer j,swap(Integer a,&b); 
+	Integer i,j,swap(Integer &a,&b); 
 enddecl
 
 
@@ -22,7 +22,7 @@ end
 
 main(){
 decl
-	Integer a,b,i,j;
+	Integer a,b,i;
 enddecl
 begin
 	a=1;b=2;

@@ -45,6 +45,7 @@ void print_table();
 // int _loc is added for compilation stage for stage8
 //		biind will now be an int and will contain locno. 
 void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
+	//printf("order : %s\n",_name);
 	//if name is not present
 	if (!fetch(head,_name)){
 
@@ -63,9 +64,9 @@ void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
 	}
 	else{
 		//error message : if variable is not present in symbol table
-		printf("%s\n",_name);
-		print_table();
-		printf("Sorry var already present or not found\n");
+		//printf("%s\n",_name);
+		//print_table();
+		//printf("Sorry var already present or not found\n");
 	}
 }
 

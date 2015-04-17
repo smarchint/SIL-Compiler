@@ -1,9 +1,9 @@
 decl
-	Integer j,fact(Integer n),foo(); 
+	Integer j,fact(Integer &n),foo(); 
 enddecl
 
 
-Integer fact(Integer n){
+Integer fact(Integer &n){
 decl	
 	Integer temp,rval;
 enddecl
@@ -43,7 +43,7 @@ begin
 	i=2;
 	j=2;
 	while(j<10)do
-		write(fact(j));
+		write(fact(&j));
 		j=j+1;
 	endwhile;
 	write(1000001);

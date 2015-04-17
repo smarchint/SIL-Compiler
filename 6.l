@@ -40,7 +40,6 @@ id [a-zA-Z][a-zA-Z0-9]*
 "<="			{return LE;}
 ">="			{return GE;}
 "!="			{return NE;}
-
 "&&"			{return AND;}
 "||"			{return OR;}
 
@@ -51,7 +50,7 @@ id [a-zA-Z][a-zA-Z0-9]*
                     yylval.id=p;
 					return ID;
 				}
-[;,()[\]{}]		{return yytext[0];}
+[;,()[\]{}&]		{return yytext[0];}
 "exit();"		{return EXIT;}
 
 .  			;

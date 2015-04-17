@@ -33,7 +33,7 @@
 	#define _main 48
 	#define _pointer 49
 
-	#define POINT 5
+	int POINT = 5;
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
@@ -197,7 +197,6 @@ int get_pointer_addr(char * _name){
 
 
 %%
-
 Program: GDefblock FdefList Mainblock	{	$$ = $3;
 											main_init($3);
 											printf("Exit");
@@ -210,53 +209,41 @@ Program: GDefblock FdefList Mainblock	{	$$ = $3;
 									exit(1);
 								}
 	;
-
-GDefblock : DECL GDefList ENDDECL	{$$=$2;fp= fopen("outfile.txt","w+");}
+GDefblock : DECL GDefList ENDDECL	{$$=$2;fp= fopen("outfile.txt","w+");print_table();}
 		;
-
 GDefList : GDefList GDecl 	{$$=makenode($1,$2,_GDefList,0,DUMMY);}
 		| GDecl				{$$=$1;}
 		;
-
 GDecl   : GINT GIdList ';'	{$$=$2; evalDecl(HEAD,$2,0,DUMMY); }
 		| GBOOL GIdList ';'	{$$=$2; evalDecl(HEAD,$2,1,DUMMY); }		
 		;
-
 GIdList :	GIdList ',' GId  {$$=makenode($1,$3,_GIdList,0,DUMMY);}
 		| GId 				 {$$=makenode(NULL,$1,_GIdList,0,DUMMY);}
 		;
-
-
 GId : ID 					{$$=makenode(NULL,NULL,ID,0,$1);}
 	| ID '[' Expr ']'		{$$=makenode($3,NULL,ARRAY,0,$1);
 							/*MOD : make "expr" integer in grammar*/}
 	| ID '(' ArgList ')'   	{$$ = makenode($3,NULL,FUNC,0,$1);	flush_local();}
 	| ID '(' ')'			{$$ = makenode(NULL,NULL,FUNC,0,$1);}
 	;
-
 ArgList : ArgList ';' Arg 	{$$ = makenode($1,$3,_ArgList,0,"_ArgList");/*when func is called called*/install_args_to_locals(-1,$$);}
 		| Arg 				{$$ = makenode($1,NULL,_ArgList,0,"_ArgList");install_args_to_locals(-1,$1);}
 		;
-
-Arg : GINT List 			{$$ = makenode($2,NULL,GINT,0,"arg");}
+Arg : GINT List 				{$$ = makenode($2,NULL,GINT,0,"arg");}
 	| GBOOL List 			{$$ = makenode($2,NULL,GBOOL,0,"arg");}
-	;
-
+	;		
 List : List ',' item		{$$ = makenode($1,$3,_List,0,"list");}
 	| item					{$$ = makenode(NULL,$1,_List,0,"list");}
 	;
-
 item 	:  ID 				{$$ = makenode(NULL,NULL,ID,0,$1);}
 		|  '&' ID 			{$$ = makenode(NULL,NULL,_pointer,0,$2);/*new change*/}
 		;
 FdefList : FdefList Fdef 	{$$ = makenode($1,$2,_Fdeflist,0,"Fdeflist");}
 		| Fdef 				{$$ = makenode(NULL,$1,_Fdeflist,0,"Fdeflist");}
 		;
-
 Body : StmtList retExp 	{$$ = makenode($1,$2,_body,0,"Body");}
 	|	retExp			{$$ = makenode(NULL,$1,_body,0,"Body");}
 	;
-
 Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'  
 							{	/*MOD : Fdef  <-- stmtlist     (improves tree)*/
 								//flush_local();
@@ -264,7 +251,6 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'
 								
 								int t = func_check1(0,$2,$4);
 								if(t !=-1  ) {getline();TypeFlag=0;}
-
 
 								struct gnode * temp = fetch(head,$2);
 								temp->flabel = Label; Label++;
@@ -454,7 +440,7 @@ int check_args(struct node *nd,int i){
 
 		case _List : {int t1 = 0;//strcmp(nd->right->varname,temp1->name);
 
-						if(t1!=0 || (temp1->type != i)) {
+						if(t1!=0 || (temp1->type != i && temp1->type -5 != i)) {
 							printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp1->type,nd->right->varname,i);
 							return 0;
 						}
@@ -501,11 +487,14 @@ int func_check1(int return_type,char *name,struct node *nd){
 //helper for list_checker
 int getType(struct node * nd){
 	switch(nd->flag){
+		case _pointer : 
 		case ID : 	{
 						struct gnode * temp = fetch(local_head,nd->varname);
 						if(temp == NULL) temp = fetch(head,nd->varname);
 						if(temp == NULL) {getline();printf("Undeclared var\n");exit(1);}
-						return temp->type;
+						int typ = temp->type;
+						if(temp->type ==5 || temp->type ==6) typ = typ -5;
+						return typ;
 					}
 		case ARRAY : {
 						struct gnode * temp = fetch(head,nd->varname);
@@ -531,7 +520,8 @@ int list_checker(struct node * nd){
 		int t1 = 0;//strcmp(nd->right->varname,temp2->name);
 		//or coulg only check  the type
 		int typ = getType(nd->right);
-		if(t1!=0 || (temp2->type != typ)) {
+		printf("typo is here %d\n",typ );
+		if(t1!=0 || (temp2->type != typ && temp2->type -5 !=typ )) {
 			getline();
 			printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp2->type,nd->right->varname,typ);
 			exit(1);
@@ -604,7 +594,9 @@ int type_check2(struct node * nd ){ // -1 is good sign , -2 is bad
 					//if (temp == NULL) temp = fetch_args(func,nd->varname);
 					if(temp == NULL) temp = fetch(head,nd->varname);
 					if(temp == NULL) {getline();printf("no such var detected\n");exit(1);}
-					  return temp->type;		
+					int m = temp->type ;
+					if(m == 5 || m == 6) m = m-5; 
+					  return m;		
 		}	
 		case _Truth: {if(nd->val == TRUE || nd->val == 	FALSE) return 1;error(4);}
 
@@ -711,6 +703,7 @@ void install_args_to_locals(int i,struct node * nd){
 		case GBOOL:   {install_args_to_locals(1,nd->left);break;}
 		case _List :  {install_args_to_locals(i,nd->left);
 						if(nd->right->flag == _pointer) i = i+POINT;
+						//printf("I like iceceram %d \n",i);
 						foo(i,nd->right->varname);break;}
 	}
 	return;
@@ -756,22 +749,20 @@ void install_args_to_func_in_global(struct gnode *t,struct node *nd,int i,int co
 
 						temp = (struct gnode *)malloc(sizeof(struct gnode ));
 						temp->name = nd->right->varname;
-
+						//printf("sai %d\n",nd->right->flag);
 						//NOTICE for pointer: type = 5,6 for int ,bool pointers
-						if(nd->right->flag == _pointer) i = i+POINT;
+						if(nd->right->flag == _pointer) {i = i+POINT;}
 						temp->type = i;
 						temp->args = NULL;
 						temp->bind = count;
 						temp->next = t->args;
 						t->args = temp;
-
 						break;
 					}
-
 	}
 	return;
-
 }
+
 //allcating space in memory of target machine
 //suggestion : Add error msg for redeclarations;
 //NOTE : I think func arg can be removed since local sym table is being crearted
@@ -790,10 +781,12 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 		case _GIdList: 	evalDecl(Flag,nd->left,i,func);
 
 						if(nd->right->flag==ID) {
+							//printf("same %s\n",nd->right->varname);
 							gentry(nd->right->varname,i,1,LocNo);//1 rep's size
 							LocNo++;
 						}
 						else if(nd->right->flag == ARRAY){
+							//printf("same %s\n",nd->right->varname);
 							int size = nd->right->left->val;
 							gentry(nd->right->varname,i,size,LocNo);
 							LocNo += size;							
@@ -801,6 +794,7 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 						}
 						//pointer mark
 						else if(nd->right->flag == FUNC ){
+							//printf("same %s\n",nd->right->varname);
 							struct gnode * temp;
 							//gnode for function in global symbol table
 							temp =(struct gnode *) malloc(sizeof(struct gnode));
@@ -819,8 +813,10 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 							temp->next =head;
 							head = temp;
 							install_args_to_func_in_global(temp,nd->right->left,i,0);	
-							//nd->r->l : arg starts		i: return type					
-						}
+							//i means nothing but useful in "inst_args_func_glob"
+							//nd->r->l : arg starts	
+
+						}break;
 
 		case _LDefList: evalDecl(Flag,nd->left,i,func);evalDecl(Flag,nd->right,i,func);break;
 		case GINT 	: evalDecl(Flag,nd->left,0,func);break;
@@ -987,6 +983,7 @@ void bind_locals_to_mem(int i,struct node * nd){
 							struct gnode * temp = fetch(local_head,nd->right->varname);
 							if(temp == NULL)
 							bind = get_local_bind_count();
+
 							foo2(i,nd->right->varname,bind);	//main part
 							break;
 						}
