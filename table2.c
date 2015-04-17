@@ -41,7 +41,7 @@ struct gnode * fetch_args(char * _func,char * _name){
 }
 
 //======================GENTRY
-
+void print_table();
 // int _loc is added for compilation stage for stage8
 //		biind will now be an int and will contain locno. 
 void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
@@ -52,7 +52,7 @@ void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
 		temp=(struct gnode *)malloc(sizeof(struct  gnode));
 		temp->name=_name;
 		temp->size=_size;
-		
+
 		temp->type=_type;
 		temp->bind=_loc;
 		temp->args = NULL;
@@ -63,6 +63,8 @@ void gentry(char* _name,int _type,int _size,int _loc){	//type : 0 fro int
 	}
 	else{
 		//error message : if variable is not present in symbol table
+		printf("%s\n",_name);
+		print_table();
 		printf("Sorry var already present or not found\n");
 	}
 }

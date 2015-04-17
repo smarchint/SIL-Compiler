@@ -31,6 +31,9 @@
 	#define _body 46
 	#define _ExpList 47
 	#define _main 48
+	#define _pointer 49
+
+	#define POINT 5
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
@@ -120,12 +123,29 @@ void error(int i){
 		case 7: {printf("Undeclared function\n");}
 		case 8: {printf("redeclared function\n");}
 		case 9: {printf("arguments mismatch\n");}
-		case 10:{printf("redeclared variable\n");}
+		case 10:{printf("argument pointer error\n");}
 	}
 	exit(1);
 }
+//for pointeres from callee perspective
+int get_pointer_val(char* _name){
+	int r  = get_pointer_addr( _name);
+	fprintf(fp,"MOV R%d,[R%d]\n",r,r);
+	return r;
+}
 
-
+int get_pointer_addr(char * _name){
+	int r = getReg();
+	int r1 = getReg();
+	struct gnode * temp = fetch(local_head,_name);
+	if(temp  ==  NULL) {error(10);}
+	int m = temp->bind;
+	fprintf(fp,"MOV R%d,%d\n",r,m);
+	fprintf(fp,"MOV R%d,BP\n",r1);
+	fprintf(fp,"ADD R%d,R%d\n",r,r1 );
+	freeReg(r1,NULL);
+	return r;
+}
 
 %}
 
@@ -159,8 +179,8 @@ void error(int i){
 
 
 %type <ptr> Program  Mainblock
-%type <ptr> StmtList  Stmt Expr
-%type <ptr>  Var ArgList Arg List 
+%type <ptr> StmtList  Stmt Expr item
+%type <ptr>  Var ArgList Arg List Expr1
 %type <ptr> FdefList Fdef Body ExpList
 %type <ptr> LDefblock LDefList LDecl  LIdList retExp
 %type <ptr> GDefblock GDefList GIdList GDecl GId
@@ -214,7 +234,7 @@ GId : ID 					{$$=makenode(NULL,NULL,ID,0,$1);}
 	| ID '(' ')'			{$$ = makenode(NULL,NULL,FUNC,0,$1);}
 	;
 
-ArgList : ArgList ';' Arg 	{$$ = makenode($1,$3,_ArgList,0,"_ArgList");install_args_to_locals(-1,$$);}
+ArgList : ArgList ';' Arg 	{$$ = makenode($1,$3,_ArgList,0,"_ArgList");/*when func is called called*/install_args_to_locals(-1,$$);}
 		| Arg 				{$$ = makenode($1,NULL,_ArgList,0,"_ArgList");install_args_to_locals(-1,$1);}
 		;
 
@@ -222,14 +242,17 @@ Arg : GINT List 			{$$ = makenode($2,NULL,GINT,0,"arg");}
 	| GBOOL List 			{$$ = makenode($2,NULL,GBOOL,0,"arg");}
 	;
 
-List : List ',' ID			{$$ = makenode($1,makenode(NULL,NULL,ID,0,$3),_List,0,"list");}
-	| ID 					{$$ = makenode(NULL,makenode(NULL,NULL,ID,0,$1),_List,0,"list");}
+List : List ',' item		{$$ = makenode($1,$3,_List,0,"list");}
+	| item					{$$ = makenode(NULL,$1,_List,0,"list");}
 	;
 
+item 	:  ID 				{$$ = makenode(NULL,NULL,ID,0,$1);}
+		|  '&' ID 			{$$ = makenode(NULL,NULL,_pointer,0,$2);/*new change*/}
+		;
 FdefList : FdefList Fdef 	{$$ = makenode($1,$2,_Fdeflist,0,"Fdeflist");}
 		| Fdef 				{$$ = makenode(NULL,$1,_Fdeflist,0,"Fdeflist");}
 		;
- 
+
 Body : StmtList retExp 	{$$ = makenode($1,$2,_body,0,"Body");}
 	|	retExp			{$$ = makenode(NULL,$1,_body,0,"Body");}
 	;
@@ -391,11 +414,16 @@ Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY); err_arg(1,$$);}
 		| Expr '%' Expr		{$$=makenode($1,$3,_mod,0,DUMMY);err_arg(0,$$);}
 		| INT 				{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
 		| Var   			{$$ = $1;}
-		| ID '(' ExpList ')'	{$$ = makenode($3,NULL,FUNC,0,$1);}
+		| ID '(' ExpList ')'{$$ = makenode($3,NULL,FUNC,0,$1);}
 		| ID '('  	  ')'	{$$ = makenode(NULL,NULL,FUNC,0,$1);}
 		;
-ExpList : ExpList ',' Expr  {$$ =makenode($1,$3,_ExpList,0,"ExpList");}
-		|	Expr 			{$$ =makenode(NULL,$1,_ExpList,0,"ExpList");}
+
+ExpList : ExpList ',' Expr1  {$$ =makenode($1,$3,_ExpList,0,"ExpList");}
+		|	Expr1 			{$$ =makenode(NULL,$1,_ExpList,0,"ExpList");}
+		;
+
+Expr1 : Expr 				{$$ = $1;}
+		| '&' ID            {$$ = makenode(NULL,NULL,_pointer,0,$2);/*new change*/}
 		;
 
 Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
@@ -489,7 +517,7 @@ int getType(struct node * nd){
 		
 		case '+':case '-':case '%':case '*':case INT : case '/':	return 0;
 		
-		case FUNC : {getline();printf("Func cannot be in arguments\n");exit(1);}
+		case FUNC : {struct gnode * temp = fetch(head,nd->varname);if(temp) return temp->type-3;}
 		//this is cause : func args cannot have funcs
 	}
 }
@@ -682,6 +710,7 @@ void install_args_to_locals(int i,struct node * nd){
 		case GINT :   {install_args_to_locals(0,nd->left);break;}
 		case GBOOL:   {install_args_to_locals(1,nd->left);break;}
 		case _List :  {install_args_to_locals(i,nd->left);
+						if(nd->right->flag == _pointer) i = i+POINT;
 						foo(i,nd->right->varname);break;}
 	}
 	return;
@@ -715,13 +744,13 @@ void install_local_var(struct node *nd,int i){
 
 //	t  : func_arg_head 		count for numbering args 	i is return type
 
-void install_args_to_global(struct gnode *t,struct node *nd,int i,int count){ 
+void install_args_to_func_in_global(struct gnode *t,struct node *nd,int i,int count){ 
 	if(nd == NULL) return;
 	switch(nd->flag){
-		case _ArgList: {install_args_to_global(t,nd->left,i,count);install_args_to_global(t,nd->right,i,count);break;}
-		case GINT : {install_args_to_global(t,nd->left,0,count);break;}
-		case GBOOL: {install_args_to_global(t,nd->left,1,count);break;}
-		case _List :{install_args_to_global(t,nd->left,i,count+1);
+		case _ArgList: {install_args_to_func_in_global(t,nd->left,i,count);install_args_to_func_in_global(t,nd->right,i,count);break;}
+		case GINT : {install_args_to_func_in_global(t,nd->left,0,count);break;}
+		case GBOOL: {install_args_to_func_in_global(t,nd->left,1,count);break;}
+		case _List :{install_args_to_func_in_global(t,nd->left,i,count+1);
 						struct gnode *temp;
 
 
@@ -729,6 +758,7 @@ void install_args_to_global(struct gnode *t,struct node *nd,int i,int count){
 						temp->name = nd->right->varname;
 
 						//NOTICE for pointer: type = 5,6 for int ,bool pointers
+						if(nd->right->flag == _pointer) i = i+POINT;
 						temp->type = i;
 						temp->args = NULL;
 						temp->bind = count;
@@ -769,6 +799,7 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 							LocNo += size;							
 
 						}
+						//pointer mark
 						else if(nd->right->flag == FUNC ){
 							struct gnode * temp;
 							//gnode for function in global symbol table
@@ -787,10 +818,9 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 							//head is here now use your head
 							temp->next =head;
 							head = temp;
-							install_args_to_global(temp,nd->right->left,i,0);	
+							install_args_to_func_in_global(temp,nd->right->left,i,0);	
 							//nd->r->l : arg starts		i: return type					
 						}
-						break;
 
 		case _LDefList: evalDecl(Flag,nd->left,i,func);evalDecl(Flag,nd->right,i,func);break;
 		case GINT 	: evalDecl(Flag,nd->left,0,func);break;
@@ -814,6 +844,7 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 
 //code gen helpers=============================================================
 void printRegStack(){	//needn't touch
+	return;
 	regCallCount++;
 
 	printf("( %d )regStack : ",regCallCount);
@@ -1051,6 +1082,10 @@ int CodeGen(struct node *nd){
 					  
 					  return r; 
 					}
+		case _pointer:{
+						int r = get_pointer_addr(nd->varname);
+						return r;
+					}
 		case INT:	{int r = getReg();
 
 					int foo = fprintf(fp,"MOV R%d,%d\n",r,nd->val);
@@ -1065,6 +1100,14 @@ int CodeGen(struct node *nd){
 					int r1 = getLoc(nd->varname);
 
 					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);
+
+					struct  gnode * temp  = fetch(local_head,nd->varname);
+
+					if(temp->type == 5 || temp->type == 6){
+
+						fprintf(fp,"MOV R%d,[R%d]\n",r,r);
+
+					} 
 
 					freeReg(r1,nd);
 					
@@ -1107,6 +1150,16 @@ int CodeGen(struct node *nd){
 						
 						int r1 = getLoc(nd->left->varname);
 						//printf("Bad %d\n",r1);
+
+						
+
+						struct gnode* temp  = fetch(local_head,nd->left->varname);
+
+						if(temp->type == 5 || temp->type == 6){
+
+							fprintf(fp,"MOV R%d,[R%d]\n",r1,r1);
+							
+						}
 
 						fprintf(fp,"MOV [R%d], R%d\n",r1,r);
 
@@ -1160,7 +1213,13 @@ int CodeGen(struct node *nd){
 
 						int r1 = getLoc(nd->left->varname);
 
-						//printf("name : %s\n",nd->left->varname);
+						struct gnode* temp  = fetch(local_head,nd->left->varname);
+
+						if(temp->type == 5 || temp->type == 6){
+
+							fprintf(fp,"MOV R%d,[R%d]\n",r1,r1);
+							
+						}
 						
 						foo = fprintf(fp,"MOV [R%d],R%d\n",r1,r);
 
