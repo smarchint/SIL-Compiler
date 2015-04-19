@@ -73,6 +73,7 @@
 	#include <stdlib.h>
 	#include <stdio.h>
 	#include <string.h>
+	
 	int lineno=1;
 	int n,TypeFlag=1; 			//typeflag default to okay ie., every thing's fine
 	
@@ -85,21 +86,152 @@
 	#define _Truth 20
 	#define _mod 25
 	#define ARRAY 34
+	#define FUNC 35
+	#define _ArgList 36
+	#define _Arg 37
+	#define _GIdList 38
+	#define _List 39
+	#define _LDefList 40
+	#define _LIdList 41
+	#define _Fdeflist 42
+	#define _Fdef 43
+	#define _ARG_LVAR 44
+	#define _junc 45
+	#define HEAD 1
+	#define L_HEAD 0
+	#define _body 46
+	#define _ExpList 47
+	#define _main 48
+	#define _pointer 49
+
+	int POINT = 5;
 	#include "table2.c"
 	#include "tree2.c"
 	#define getline() printf("Error at %d\n",lineno);
+	
+
+	int agcount =1;
+
+	//===GLOBAL VARIABLES used in codegen part
+
+	//reg call count
+	int regCallCount = 0;
+
+	int regStack[8] = {-1,-1,-1,-1,-1,-1,-1,-1};
+	
+
+	//for label generation
+	int Label=0;
+
+	//free reg after completion of its requirement
+	int RegNo = -1;	//range 0-7
+
+	//use and increase to size
+	int LocNo = 0;	//range 0-25
+
+	int BP = 0;
+	int SP = 0;
+
+	//============================================
 
 
 	FILE * fp;
+	char * current_func;
+	void evalDecl(int flag ,struct node *nd,int i,char * name);
+	void flush_local();
+	void ret_check(int i,struct node * nd);
+	void install_args_to_locals(int i,struct node * nd);
+	void push_list(struct node * nd);
+	void pop_list(struct node * nd);
+	void func_code_gen(int i,struct node * nd);
+	void err_arg(int i,struct node * nd);
+	void alloc_mem_for_func_locals(struct node * nd);
+	void bind_locals_to_mem(int i,struct node * nd);
+	void freeReg(int r,struct node * nd);
+	void local_bind_count_init();
+	int get_local_bind_count();
+	void arg_bind_count_init();
+	int get_arg_bind_count();
 
-	void evalDecl(struct node *nd,int i);
-//		| '(' Relexp ')'	{$$=$2;}
-	struct node* t;
+//void func_init(struct node * ) ask anoosh abt this #args list struct in c lang
+
+
+void main_init(struct node * nd){
+		if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
+		print_table();	
+		int foo = fprintf(fp,"START\n");
+		///fprintf(fp,"MOV BP, 0\n");
+		//fprintf(fp, "MOV SP,BP\n" );
+		fprintf(fp,"MOV BP, %d\n",LocNo-1);
+		fprintf(fp,"MOV SP,BP\n");
+		printf("Initial BP is at %d\n",LocNo-1);
+		//fprintf(fp,"PUSH BP\n");
+		int m = local_head->bind;	
+		int r = getReg();
+		int r1 = getReg();
+		fprintf(fp, "MOV R%d,%d\n",r,m );
+		fprintf(fp, "MOV R%d,SP\n",r1 );
+		fprintf(fp, "ADD R%d,R%d\n",r,r1 );
+		fprintf(fp,"MOV SP,R%d\n",r);
+		freeReg(r1,NULL);
+		freeReg(r,NULL);
+		CodeGen(nd);
+		foo = fprintf(fp,"HALT");
+		int z= fclose(fp);
+		print_table();
+		exit(1);
+}
+
+void error(int i){
+	getline();
+	switch(i){
+		case 1: {printf("Undeclared Variable\n");}
+		case 2: {printf("Redeclared Variable\n");}
+		case 3: {printf("Expected int\n");}
+		case 4: {printf("Expected bool\n");}
+		case 5: {printf("Type Mismatch\n");}
+		case 6: {printf("Return type error\n");}
+		case 7: {printf("Undeclared function\n");}
+		case 8: {printf("redeclared function\n");}
+		case 9: {printf("arguments mismatch\n");}
+		case 10:{printf("argument pointer error\n");}
+	}
+	exit(1);
+}
+//for pointeres from callee perspective
+int get_pointer_val(char* _name){
+	int r  = get_pointer_addr( _name);
+	fprintf(fp,"MOV R%d,[R%d]\n",r,r);
+	return r;
+}
+
+int get_pointer_addr(struct node * nd){
+	int r = getReg();
+	int r1 = getReg();
+	int flag = 0;		//to distinguish from global to local -- BP issue in global
+	struct gnode * temp;
+	temp = fetch(head,nd->varname);
+	if(temp == NULL) temp = fetch(local_head,nd->varname);
+	else flag =1;
+	if(temp  ==  NULL) {error(10);}
+	int m = temp->bind;
+	fprintf(fp,"MOV R%d,%d\n",r,m);
+	if(nd->left) {
+		int r2 = CodeGen(nd->left);
+		fprintf(fp,"ADD R%d,R%d\n",r,r2);
+		freeReg(r2,nd);
+	}
+	fprintf(fp,"MOV R%d,0\n",r1);
+	if(flag!=1) fprintf(fp,"MOV R%d,BP\n",r1);
+	fprintf(fp,"ADD R%d,R%d\n",r,r1 );
+	freeReg(r1,NULL);
+	return r;
+}
 
 
 
 /* Line 189 of yacc.c  */
-#line 103 "y.tab.c"
+#line 235 "y.tab.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -132,30 +264,32 @@
      READ = 261,
      IF = 262,
      THEN = 263,
-     ENDIF = 264,
-     WHILE = 265,
-     DO = 266,
-     ENDWHILE = 267,
-     EQEQ = 268,
-     INTEGER = 269,
-     MAIN = 270,
-     EXIT = 271,
-     SILBEGIN = 272,
-     END = 273,
-     DECL = 274,
-     ENDDECL = 275,
-     GBOOL = 276,
-     GINT = 277,
-     INTD = 278,
-     BOOLD = 279,
-     TRUE = 280,
-     FALSE = 281,
-     LE = 282,
-     GE = 283,
-     NE = 284,
-     AND = 285,
-     OR = 286,
-     NOT = 287
+     ELSE = 264,
+     ENDIF = 265,
+     WHILE = 266,
+     DO = 267,
+     ENDWHILE = 268,
+     EQEQ = 269,
+     INTEGER = 270,
+     MAIN = 271,
+     EXIT = 272,
+     SILBEGIN = 273,
+     END = 274,
+     DECL = 275,
+     ENDDECL = 276,
+     RET = 277,
+     GBOOL = 278,
+     GINT = 279,
+     INTD = 280,
+     BOOLD = 281,
+     TRUE = 282,
+     FALSE = 283,
+     LE = 284,
+     GE = 285,
+     NE = 286,
+     AND = 287,
+     OR = 288,
+     NOT = 289
    };
 #endif
 /* Tokens.  */
@@ -165,30 +299,32 @@
 #define READ 261
 #define IF 262
 #define THEN 263
-#define ENDIF 264
-#define WHILE 265
-#define DO 266
-#define ENDWHILE 267
-#define EQEQ 268
-#define INTEGER 269
-#define MAIN 270
-#define EXIT 271
-#define SILBEGIN 272
-#define END 273
-#define DECL 274
-#define ENDDECL 275
-#define GBOOL 276
-#define GINT 277
-#define INTD 278
-#define BOOLD 279
-#define TRUE 280
-#define FALSE 281
-#define LE 282
-#define GE 283
-#define NE 284
-#define AND 285
-#define OR 286
-#define NOT 287
+#define ELSE 264
+#define ENDIF 265
+#define WHILE 266
+#define DO 267
+#define ENDWHILE 268
+#define EQEQ 269
+#define INTEGER 270
+#define MAIN 271
+#define EXIT 272
+#define SILBEGIN 273
+#define END 274
+#define DECL 275
+#define ENDDECL 276
+#define RET 277
+#define GBOOL 278
+#define GINT 279
+#define INTD 280
+#define BOOLD 281
+#define TRUE 282
+#define FALSE 283
+#define LE 284
+#define GE 285
+#define NE 286
+#define AND 287
+#define OR 288
+#define NOT 289
 
 
 
@@ -198,7 +334,7 @@ typedef union YYSTYPE
 {
 
 /* Line 214 of yacc.c  */
-#line 31 "6.y"
+#line 163 "6.y"
 
 	int val;
 	char* id;
@@ -207,7 +343,7 @@ typedef union YYSTYPE
 
 
 /* Line 214 of yacc.c  */
-#line 211 "y.tab.c"
+#line 347 "y.tab.c"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -219,7 +355,7 @@ typedef union YYSTYPE
 
 
 /* Line 264 of yacc.c  */
-#line 223 "y.tab.c"
+#line 359 "y.tab.c"
 
 #ifdef short
 # undef short
@@ -434,20 +570,20 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  8
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   154
+#define YYLAST   400
 
 /* YYNTOKENS -- Number of terminals.  */
-#define YYNTOKENS  48
+#define YYNTOKENS  53
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  12
+#define YYNNTS  26
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  39
+#define YYNRULES  75
 /* YYNRULES -- Number of states.  */
-#define YYNSTATES  94
+#define YYNSTATES  199
 
 /* YYTRANSLATE(YYLEX) -- Bison symbol number corresponding to YYLEX.  */
 #define YYUNDEFTOK  2
-#define YYMAXUTOK   287
+#define YYMAXUTOK   289
 
 #define YYTRANSLATE(YYX)						\
   ((unsigned int) (YYX) <= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
@@ -458,16 +594,16 @@ static const yytype_uint8 yytranslate[] =
        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,    33,     2,     2,     2,    38,     2,     2,
-      42,    43,    36,    34,    45,    35,     2,    37,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,    41,
-      39,    44,    40,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,    35,     2,     2,     2,    40,    49,     2,
+      47,    48,    38,    36,    44,    37,     2,    39,     2,     2,
+       2,     2,     2,     2,     2,     2,     2,     2,     2,    43,
+      41,    52,    42,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,    46,     2,    47,     2,     2,     2,     2,     2,     2,
+       2,    45,     2,    46,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
-       2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+       2,     2,     2,    50,     2,    51,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
@@ -483,47 +619,72 @@ static const yytype_uint8 yytranslate[] =
        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
-      25,    26,    27,    28,    29,    30,    31,    32
+      25,    26,    27,    28,    29,    30,    31,    32,    33,    34
 };
 
 #if YYDEBUG
 /* YYPRHS[YYN] -- Index of the first RHS symbol of rule number YYN in
    YYRHS.  */
-static const yytype_uint8 yyprhs[] =
+static const yytype_uint16 yyprhs[] =
 {
-       0,     0,     3,     6,    10,    13,    15,    19,    23,    27,
-      29,    32,    38,    44,    53,    62,    67,    72,    76,    78,
-      82,    86,    90,    94,    98,   102,   105,   109,   113,   115,
-     117,   119,   123,   127,   131,   135,   139,   141,   143,   145
+       0,     0,     3,     7,    10,    14,    17,    19,    23,    27,
+      31,    33,    35,    40,    45,    49,    53,    55,    58,    61,
+      65,    67,    69,    72,    75,    77,    80,    82,    94,   106,
+     117,   128,   132,   136,   139,   141,   145,   149,   153,   155,
+     164,   172,   174,   177,   183,   189,   198,   209,   218,   223,
+     227,   231,   235,   239,   243,   247,   250,   254,   258,   260,
+     262,   266,   270,   274,   278,   282,   284,   286,   291,   295,
+     299,   301,   303,   306,   312,   314
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
 static const yytype_int8 yyrhs[] =
 {
-      49,     0,    -1,    50,    53,    -1,    19,    51,    20,    -1,
-      51,    52,    -1,    52,    -1,    22,    56,    41,    -1,    21,
-      56,    41,    -1,    17,    54,    18,    -1,    55,    -1,    54,
-      55,    -1,     5,    42,    58,    43,    41,    -1,     6,    42,
-      59,    43,    41,    -1,     7,    42,    57,    43,     8,    54,
-       9,    41,    -1,    10,    42,    57,    43,    11,    54,    12,
-      41,    -1,    59,    44,    58,    41,    -1,    59,    44,    57,
-      41,    -1,    56,    45,    59,    -1,    59,    -1,    58,    39,
-      58,    -1,    58,    40,    58,    -1,    58,    28,    58,    -1,
-      58,    27,    58,    -1,    58,    29,    58,    -1,    58,    13,
-      58,    -1,    33,    57,    -1,    57,    30,    57,    -1,    57,
-      31,    57,    -1,    25,    -1,    26,    -1,    59,    -1,    58,
-      34,    58,    -1,    58,    35,    58,    -1,    58,    36,    58,
-      -1,    58,    37,    58,    -1,    58,    38,    58,    -1,     4,
-      -1,    59,    -1,     3,    -1,     3,    46,    58,    47,    -1
+      54,     0,    -1,    55,    64,    72,    -1,    55,    72,    -1,
+      20,    56,    21,    -1,    56,    57,    -1,    57,    -1,    24,
+      58,    43,    -1,    23,    58,    43,    -1,    58,    44,    59,
+      -1,    59,    -1,     3,    -1,     3,    45,    75,    46,    -1,
+       3,    47,    60,    48,    -1,     3,    47,    48,    -1,    60,
+      43,    61,    -1,    61,    -1,    24,    62,    -1,    23,    62,
+      -1,    62,    44,    63,    -1,    63,    -1,     3,    -1,    49,
+       3,    -1,    64,    66,    -1,    66,    -1,    73,    67,    -1,
+      67,    -1,    24,     3,    47,    60,    48,    50,    68,    18,
+      65,    19,    51,    -1,    23,     3,    47,    60,    48,    50,
+      68,    18,    65,    19,    51,    -1,    24,     3,    47,    48,
+      50,    68,    18,    65,    19,    51,    -1,    23,     3,    47,
+      48,    50,    68,    18,    65,    19,    51,    -1,    22,    75,
+      43,    -1,    20,    69,    21,    -1,    69,    70,    -1,    70,
+      -1,    24,    71,    43,    -1,    23,    71,    43,    -1,    71,
+      44,     3,    -1,     3,    -1,    16,    50,    68,    18,    73,
+      67,    19,    51,    -1,    16,    50,    18,    73,    67,    19,
+      51,    -1,    74,    -1,    73,    74,    -1,     5,    47,    75,
+      48,    43,    -1,     6,    47,    78,    48,    43,    -1,     7,
+      47,    75,    48,     8,    73,    10,    43,    -1,     7,    47,
+      75,    48,     8,    73,     9,    73,    10,    43,    -1,    11,
+      47,    75,    48,    12,    73,    13,    43,    -1,    78,    52,
+      75,    43,    -1,    75,    41,    75,    -1,    75,    42,    75,
+      -1,    75,    30,    75,    -1,    75,    29,    75,    -1,    75,
+      31,    75,    -1,    75,    14,    75,    -1,    35,    75,    -1,
+      75,    32,    75,    -1,    75,    33,    75,    -1,    27,    -1,
+      28,    -1,    75,    36,    75,    -1,    75,    37,    75,    -1,
+      75,    38,    75,    -1,    75,    39,    75,    -1,    75,    40,
+      75,    -1,     4,    -1,    78,    -1,     3,    47,    76,    48,
+      -1,     3,    47,    48,    -1,    76,    44,    77,    -1,    77,
+      -1,    75,    -1,    49,     3,    -1,    49,     3,    45,    75,
+      46,    -1,     3,    -1,     3,    45,    75,    46,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
-static const yytype_uint8 yyrline[] =
+static const yytype_uint16 yyrline[] =
 {
-       0,    84,    84,    99,   102,   104,   108,   111,   116,   120,
-     122,   126,   130,   134,   139,   143,   147,   154,   156,   161,
-     163,   165,   167,   169,   171,   173,   175,   177,   179,   181,
-     183,   187,   189,   191,   193,   195,   197,   199,   204,   206
+       0,   210,   210,   216,   222,   224,   225,   227,   228,   230,
+     231,   233,   234,   236,   237,   239,   240,   242,   243,   245,
+     246,   248,   249,   251,   252,   254,   255,   257,   273,   290,
+     309,   328,   331,   333,   334,   337,   338,   341,   342,   345,
+     353,   365,   366,   370,   373,   376,   379,   383,   386,   393,
+     394,   395,   396,   397,   398,   399,   400,   401,   403,   404,
+     406,   407,   408,   409,   410,   411,   412,   413,   414,   417,
+     418,   421,   422,   423,   426,   427
 };
 #endif
 
@@ -533,13 +694,15 @@ static const yytype_uint8 yyrline[] =
 static const char *const yytname[] =
 {
   "$end", "error", "$undefined", "ID", "INT", "WRITE", "READ", "IF",
-  "THEN", "ENDIF", "WHILE", "DO", "ENDWHILE", "EQEQ", "INTEGER", "MAIN",
-  "EXIT", "SILBEGIN", "END", "DECL", "ENDDECL", "GBOOL", "GINT", "INTD",
-  "BOOLD", "TRUE", "FALSE", "LE", "GE", "NE", "AND", "OR", "NOT", "'!'",
-  "'+'", "'-'", "'*'", "'/'", "'%'", "'<'", "'>'", "';'", "'('", "')'",
-  "'='", "','", "'['", "']'", "$accept", "Program", "GDefblock",
-  "GDefList", "GDecl", "Mainblock", "StmtList", "Stmt", "Varlist",
-  "Relexp", "Expr", "Var", 0
+  "THEN", "ELSE", "ENDIF", "WHILE", "DO", "ENDWHILE", "EQEQ", "INTEGER",
+  "MAIN", "EXIT", "SILBEGIN", "END", "DECL", "ENDDECL", "RET", "GBOOL",
+  "GINT", "INTD", "BOOLD", "TRUE", "FALSE", "LE", "GE", "NE", "AND", "OR",
+  "NOT", "'!'", "'+'", "'-'", "'*'", "'/'", "'%'", "'<'", "'>'", "';'",
+  "','", "'['", "']'", "'('", "')'", "'&'", "'{'", "'}'", "'='", "$accept",
+  "Program", "GDefblock", "GDefList", "GDecl", "GIdList", "GId", "ArgList",
+  "Arg", "List", "item", "FdefList", "Body", "Fdef", "retExp", "LDefblock",
+  "LDefList", "LDecl", "LIdList", "Mainblock", "StmtList", "Stmt", "Expr",
+  "ExpList", "Expr1", "Var", 0
 };
 #endif
 
@@ -551,27 +714,36 @@ static const yytype_uint16 yytoknum[] =
        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
      275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
-     285,   286,   287,    33,    43,    45,    42,    47,    37,    60,
-      62,    59,    40,    41,    61,    44,    91,    93
+     285,   286,   287,   288,   289,    33,    43,    45,    42,    47,
+      37,    60,    62,    59,    44,    91,    93,    40,    41,    38,
+     123,   125,    61
 };
 # endif
 
 /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_uint8 yyr1[] =
 {
-       0,    48,    49,    50,    51,    51,    52,    52,    53,    54,
-      54,    55,    55,    55,    55,    55,    55,    56,    56,    57,
-      57,    57,    57,    57,    57,    57,    57,    57,    57,    57,
-      57,    58,    58,    58,    58,    58,    58,    58,    59,    59
+       0,    53,    54,    54,    55,    56,    56,    57,    57,    58,
+      58,    59,    59,    59,    59,    60,    60,    61,    61,    62,
+      62,    63,    63,    64,    64,    65,    65,    66,    66,    66,
+      66,    67,    68,    69,    69,    70,    70,    71,    71,    72,
+      72,    73,    73,    74,    74,    74,    74,    74,    74,    75,
+      75,    75,    75,    75,    75,    75,    75,    75,    75,    75,
+      75,    75,    75,    75,    75,    75,    75,    75,    75,    76,
+      76,    77,    77,    77,    78,    78
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
 static const yytype_uint8 yyr2[] =
 {
-       0,     2,     2,     3,     2,     1,     3,     3,     3,     1,
-       2,     5,     5,     8,     8,     4,     4,     3,     1,     3,
+       0,     2,     3,     2,     3,     2,     1,     3,     3,     3,
+       1,     1,     4,     4,     3,     3,     1,     2,     2,     3,
+       1,     1,     2,     2,     1,     2,     1,    11,    11,    10,
+      10,     3,     3,     2,     1,     3,     3,     3,     1,     8,
+       7,     1,     2,     5,     5,     8,    10,     8,     4,     3,
        3,     3,     3,     3,     3,     2,     3,     3,     1,     1,
-       1,     3,     3,     3,     3,     3,     1,     1,     1,     4
+       3,     3,     3,     3,     3,     1,     1,     4,     3,     3,
+       1,     1,     2,     5,     1,     4
 };
 
 /* YYDEFACT[STATE-NAME] -- Default rule to reduce with in state
@@ -579,108 +751,190 @@ static const yytype_uint8 yyr2[] =
    means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       0,     0,     0,     0,     0,     0,     0,     5,     1,     0,
-       2,    38,     0,    18,     0,     3,     4,     0,     0,     0,
-       0,     0,     9,     0,     0,     7,     0,     6,     0,     0,
-       0,     0,     8,    10,     0,    36,     0,    37,    17,     0,
-       0,    28,    29,     0,     0,     0,    37,     0,     0,     0,
-       0,     0,     0,     0,     0,    39,     0,     0,    25,     0,
-       0,     0,     0,     0,     0,     0,     0,     0,     0,    16,
-      15,    31,    32,    33,    34,    35,    11,    12,    26,    27,
-       0,    24,    22,    21,    23,    19,    20,     0,     0,     0,
-       0,     0,    13,    14
+       0,     0,     0,     0,     0,     0,     0,     6,     1,     0,
+       0,     0,     0,    24,     3,    11,     0,    10,     0,     4,
+       5,     0,     0,     0,    23,     2,     0,     0,     8,     0,
+       7,     0,     0,     0,     0,     0,    74,    65,    58,    59,
+       0,     0,    66,     0,     0,    14,     0,    16,     9,    74,
+       0,     0,     0,     0,     0,    41,     0,     0,     0,     0,
+      34,     0,     0,     0,     0,     0,     0,     0,    55,     0,
+       0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+       0,     0,    12,    21,     0,    18,    20,    17,     0,    13,
+       0,     0,     0,     0,     0,     0,    42,     0,    38,     0,
+       0,    32,    33,     0,     0,     0,     0,     0,     0,    68,
+       0,    71,     0,    70,    54,    52,    51,    53,    56,    57,
+      60,    61,    62,    63,    64,    49,    50,    22,     0,    15,
+       0,     0,     0,     0,     0,     0,     0,    36,     0,    35,
+       0,     0,     0,     0,     0,    75,    72,     0,    67,    19,
+       0,     0,     0,     0,    31,    40,    48,    37,     0,     0,
+       0,     0,     0,     0,    69,    43,    44,     0,     0,    39,
+       0,    26,     0,     0,     0,     0,     0,     0,     0,     0,
+      25,     0,     0,     0,    73,     0,     0,     0,    30,     0,
+      29,     0,     0,    45,    47,    28,    27,     0,    46
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
-static const yytype_int8 yydefgoto[] =
+static const yytype_int16 yydefgoto[] =
 {
-      -1,     2,     3,     6,     7,    10,    21,    22,    12,    44,
-      45,    37
+      -1,     2,     3,     6,     7,    16,    17,    46,    47,    85,
+      86,    12,   170,    13,   171,    33,    59,    60,    99,    14,
+     172,    55,   111,   112,   113,    42
 };
 
 /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
    STATE-NUM.  */
-#define YYPACT_NINF -39
+#define YYPACT_NINF -58
 static const yytype_int16 yypact[] =
 {
-     -10,    16,    23,    11,    54,    54,    86,   -39,   -39,    61,
-     -39,    45,   -38,   -39,   -37,   -39,   -39,    60,    67,    80,
-      81,    55,   -39,    57,    71,   -39,    54,   -39,    71,    54,
-      17,    17,   -39,   -39,    17,   -39,   -23,   -39,   -39,    83,
-      87,   -39,   -39,    17,    10,    76,   -12,    47,    51,    59,
-      71,    71,    71,    71,    71,   -39,    90,    97,   -39,    17,
-      17,   116,    71,    71,    71,    71,    71,    71,   138,   -39,
-     -39,   110,   110,   -39,   -39,   -39,   -39,   -39,   -39,   120,
-      61,   107,   107,   107,   107,   107,   107,    61,   130,   122,
-     111,   112,   -39,   -39
+     -19,    40,    16,    -2,    15,    15,    87,   -58,   -58,     9,
+      72,    96,    -2,   -58,   -58,    35,    45,   -58,    63,   -58,
+     -58,    80,    56,    68,   -58,   -58,     1,   -17,   -58,    15,
+     -58,   389,   111,   108,   -13,    -4,    82,   -58,   -58,   -58,
+       1,   187,   -58,    12,    12,   -58,   -10,   -58,   -58,    98,
+     106,   117,   126,   150,   342,   -58,   120,   195,   195,   134,
+     -58,   389,   149,    -9,   157,    -3,     1,    38,    54,     1,
+       1,     1,     1,     1,     1,     1,     1,     1,     1,     1,
+       1,     1,   -58,   -58,   205,   186,   -58,   186,   125,   -58,
+       1,   229,     1,     1,     1,   212,   -58,     1,   -58,   116,
+     119,   -58,   -58,   342,   214,   185,   214,   193,   208,   -58,
+     233,   288,   -36,   -58,   237,    -5,    -5,    -5,    54,   302,
+     321,   321,    83,    83,    83,    91,    -5,   -58,    12,   -58,
+     138,   204,   152,   173,   248,   202,   268,   -58,   252,   -58,
+     244,   238,   214,   253,   214,   -58,   227,    74,   -58,   -58,
+     230,   232,   275,   264,   -58,   -58,   -58,   -58,   241,   342,
+     276,   342,   277,     1,   -58,   -58,   -58,   389,   389,   -58,
+     274,   -58,   342,   342,   284,   342,   228,   371,   362,   245,
+     -58,   293,   262,   295,   -58,   389,   272,   279,   -58,   285,
+     -58,   286,   380,   -58,   -58,   -58,   -58,   280,   -58
 };
 
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int16 yypgoto[] =
 {
-     -39,   -39,   -39,   -39,   145,   -39,   -28,   -19,   149,    20,
-     -18,    -4
+     -58,   -58,   -58,   -58,   340,   349,   326,   161,   269,   312,
+     242,   -58,   -57,   346,   -41,   -25,   -58,   307,   313,   360,
+     -29,   -27,   -23,   -58,   246,   -31
 };
 
 /* YYTABLE[YYPACT[STATE-NUM]].  What to do in state STATE-NUM.  If
    positive, shift that token.  If negative, reduce the rule which
    number is the opposite.  If zero, do what YYDEFACT says.
    If YYTABLE_NINF, syntax error.  */
-#define YYTABLE_NINF -31
-static const yytype_int8 yytable[] =
+#define YYTABLE_NINF -1
+static const yytype_int16 yytable[] =
 {
-      13,    13,    33,    25,    27,    23,    36,    26,    26,     1,
-      39,    50,    51,    52,    53,    54,    49,    23,   -30,   -30,
-      11,    35,    38,     8,    55,    40,    46,    46,     9,   -30,
-      46,   -30,    71,    72,    73,    74,    75,     4,     5,    46,
-      59,    60,    41,    42,    81,    82,    83,    84,    85,    86,
-      43,    47,    88,    61,    48,    46,    46,    11,    11,    89,
-      17,    18,    19,    58,    11,    20,    17,    18,    19,    33,
-      33,    20,    62,    32,    11,    35,    23,    59,    60,    78,
-      79,    59,    60,    23,    23,    23,    63,    64,    65,    62,
-      68,    24,    69,    50,    51,    52,    53,    54,    66,    67,
-      70,    34,    28,    63,    64,    65,    15,     4,     5,    29,
-      50,    51,    52,    53,    54,    66,    67,    50,    51,    52,
-      53,    54,    30,    31,    80,    11,    56,    17,    18,    19,
-      57,    76,    20,    11,    91,    17,    18,    19,    77,    90,
-      20,    50,    51,    52,    53,    54,    52,    53,    54,    87,
-      59,    16,    92,    93,    14
+      56,     1,    54,    41,    36,    37,    43,    44,   147,    69,
+      43,    44,   148,    95,     9,    83,     8,    68,    15,    43,
+      44,    10,    11,    56,    -1,    -1,    -1,    96,    38,    39,
+      56,    45,   103,    88,    88,    62,    40,    -1,    89,   105,
+      88,    36,    37,   108,    64,   107,   114,   115,   116,   117,
+     118,   119,   120,   121,   122,   123,   124,   125,   126,    21,
+     131,    84,   140,     4,     5,    38,    39,   130,    69,   132,
+     133,   134,    56,    40,   136,    22,    96,    36,    37,   141,
+      26,   143,    27,    70,    71,    72,   109,   110,    28,    29,
+      75,    76,    77,    78,    79,    80,    81,    69,    31,    23,
+      32,    38,    39,    34,   174,    69,    30,    29,    19,    40,
+       4,     5,    70,    71,    72,    35,   181,   160,   183,   162,
+      70,    71,    72,   110,    80,    81,    61,    66,    56,    67,
+      56,   180,    -1,    81,    57,    58,    56,    56,   177,   178,
+     176,    56,    56,    66,    56,    96,    56,    56,    43,    44,
+      96,    96,    69,    90,    56,   101,   192,    57,    58,   137,
+     138,    56,   139,   138,    91,    96,    69,    70,    71,    72,
+      73,    74,    97,    92,    75,    76,    77,    78,    79,    80,
+      81,    70,    71,    72,    73,    74,   150,    69,    75,    76,
+      77,    78,    79,    80,    81,    63,    65,    93,    98,   104,
+     152,    69,    70,    71,    72,    73,    74,   106,   127,    75,
+      76,    77,    78,    79,    80,    81,    70,    71,    72,    73,
+      74,   153,    69,    75,    76,    77,    78,    79,    80,    81,
+     128,   135,    49,    82,    32,   142,   146,    70,    71,    72,
+      73,    74,    69,   144,    75,    76,    77,    78,    79,    80,
+      81,    -1,   151,   155,   145,   157,   159,    70,    71,    72,
+      73,    74,    69,   158,    75,    76,    77,    78,    79,    80,
+      81,   161,   163,   165,   184,   166,   168,    70,    71,    72,
+      73,    74,    69,   167,    75,    76,    77,    78,    79,    80,
+      81,   154,   169,   179,   173,   175,   188,    70,    71,    72,
+      73,    74,    69,   182,    75,    76,    77,    78,    79,    80,
+      81,   156,   189,   190,   191,   193,    69,    70,    71,    72,
+      73,    74,   194,   198,    75,    76,    77,    78,    79,    80,
+      81,    70,    71,    72,    73,    69,   195,   196,    75,    76,
+      77,    78,    79,    80,    81,    49,    20,    50,    51,    52,
+      70,    71,    72,    53,    18,    48,    87,   129,    24,    77,
+      78,    79,    80,    81,    94,    49,   102,    50,    51,    52,
+     149,   100,    25,    53,    49,   187,    50,    51,    52,     0,
+     185,   186,    53,    49,     0,    50,    51,    52,     0,     0,
+     197,    53,    49,   164,    50,    51,    52,     0,     0,     0,
+      53
 };
 
-static const yytype_uint8 yycheck[] =
+static const yytype_int16 yycheck[] =
 {
-       4,     5,    21,    41,    41,     9,    24,    45,    45,    19,
-      28,    34,    35,    36,    37,    38,    34,    21,    30,    31,
-       3,     4,    26,     0,    47,    29,    30,    31,    17,    41,
-      34,    43,    50,    51,    52,    53,    54,    21,    22,    43,
-      30,    31,    25,    26,    62,    63,    64,    65,    66,    67,
-      33,    31,    80,    43,    34,    59,    60,     3,     3,    87,
-       5,     6,     7,    43,     3,    10,     5,     6,     7,    88,
-      89,    10,    13,    18,     3,     4,    80,    30,    31,    59,
-      60,    30,    31,    87,    88,    89,    27,    28,    29,    13,
-      43,    46,    41,    34,    35,    36,    37,    38,    39,    40,
-      41,    44,    42,    27,    28,    29,    20,    21,    22,    42,
-      34,    35,    36,    37,    38,    39,    40,    34,    35,    36,
-      37,    38,    42,    42,     8,     3,    43,     5,     6,     7,
-      43,    41,    10,     3,    12,     5,     6,     7,    41,     9,
-      10,    34,    35,    36,    37,    38,    36,    37,    38,    11,
-      30,     6,    41,    41,     5
+      31,    20,    31,    26,     3,     4,    23,    24,    44,    14,
+      23,    24,    48,    54,    16,     3,     0,    40,     3,    23,
+      24,    23,    24,    54,    29,    30,    31,    54,    27,    28,
+      61,    48,    61,    43,    43,    48,    35,    42,    48,    48,
+      43,     3,     4,    66,    48,    48,    69,    70,    71,    72,
+      73,    74,    75,    76,    77,    78,    79,    80,    81,    50,
+      91,    49,   103,    23,    24,    27,    28,    90,    14,    92,
+      93,    94,   103,    35,    97,     3,   103,     3,     4,   104,
+      45,   106,    47,    29,    30,    31,    48,    49,    43,    44,
+      36,    37,    38,    39,    40,    41,    42,    14,    18,     3,
+      20,    27,    28,    47,   161,    14,    43,    44,    21,    35,
+      23,    24,    29,    30,    31,    47,   173,   142,   175,   144,
+      29,    30,    31,    49,    41,    42,    18,    45,   159,    47,
+     161,   172,    41,    42,    23,    24,   167,   168,   167,   168,
+     163,   172,   173,    45,   175,   172,   177,   178,    23,    24,
+     177,   178,    14,    47,   185,    21,   185,    23,    24,    43,
+      44,   192,    43,    44,    47,   192,    14,    29,    30,    31,
+      32,    33,    52,    47,    36,    37,    38,    39,    40,    41,
+      42,    29,    30,    31,    32,    33,    48,    14,    36,    37,
+      38,    39,    40,    41,    42,    34,    35,    47,     3,    50,
+      48,    14,    29,    30,    31,    32,    33,    50,     3,    36,
+      37,    38,    39,    40,    41,    42,    29,    30,    31,    32,
+      33,    48,    14,    36,    37,    38,    39,    40,    41,    42,
+      44,    19,     3,    46,    20,    50,     3,    29,    30,    31,
+      32,    33,    14,    50,    36,    37,    38,    39,    40,    41,
+      42,    14,    48,    51,    46,     3,    18,    29,    30,    31,
+      32,    33,    14,    19,    36,    37,    38,    39,    40,    41,
+      42,    18,    45,    43,    46,    43,    12,    29,    30,    31,
+      32,    33,    14,     8,    36,    37,    38,    39,    40,    41,
+      42,    43,    51,    19,    18,    18,    51,    29,    30,    31,
+      32,    33,    14,    19,    36,    37,    38,    39,    40,    41,
+      42,    43,    19,    51,    19,    43,    14,    29,    30,    31,
+      32,    33,    43,    43,    36,    37,    38,    39,    40,    41,
+      42,    29,    30,    31,    32,    14,    51,    51,    36,    37,
+      38,    39,    40,    41,    42,     3,     6,     5,     6,     7,
+      29,    30,    31,    11,     5,    29,    44,    88,    12,    38,
+      39,    40,    41,    42,    22,     3,    59,     5,     6,     7,
+     128,    58,    12,    11,     3,    13,     5,     6,     7,    -1,
+       9,    10,    11,     3,    -1,     5,     6,     7,    -1,    -1,
+      10,    11,     3,   147,     5,     6,     7,    -1,    -1,    -1,
+      11
 };
 
 /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
    symbol of state STATE-NUM.  */
 static const yytype_uint8 yystos[] =
 {
-       0,    19,    49,    50,    21,    22,    51,    52,     0,    17,
-      53,     3,    56,    59,    56,    20,    52,     5,     6,     7,
-      10,    54,    55,    59,    46,    41,    45,    41,    42,    42,
-      42,    42,    18,    55,    44,     4,    58,    59,    59,    58,
-      59,    25,    26,    33,    57,    58,    59,    57,    57,    58,
-      34,    35,    36,    37,    38,    47,    43,    43,    57,    30,
-      31,    43,    13,    27,    28,    29,    39,    40,    43,    41,
-      41,    58,    58,    58,    58,    58,    41,    41,    57,    57,
-       8,    58,    58,    58,    58,    58,    58,    11,    54,    54,
-       9,    12,    41,    41
+       0,    20,    54,    55,    23,    24,    56,    57,     0,    16,
+      23,    24,    64,    66,    72,     3,    58,    59,    58,    21,
+      57,    50,     3,     3,    66,    72,    45,    47,    43,    44,
+      43,    18,    20,    68,    47,    47,     3,     4,    27,    28,
+      35,    75,    78,    23,    24,    48,    60,    61,    59,     3,
+       5,     6,     7,    11,    73,    74,    78,    23,    24,    69,
+      70,    18,    48,    60,    48,    60,    45,    47,    75,    14,
+      29,    30,    31,    32,    33,    36,    37,    38,    39,    40,
+      41,    42,    46,     3,    49,    62,    63,    62,    43,    48,
+      47,    47,    47,    47,    22,    67,    74,    52,     3,    71,
+      71,    21,    70,    73,    50,    48,    50,    48,    75,    48,
+      49,    75,    76,    77,    75,    75,    75,    75,    75,    75,
+      75,    75,    75,    75,    75,    75,    75,     3,    44,    61,
+      75,    78,    75,    75,    75,    19,    75,    43,    44,    43,
+      67,    68,    50,    68,    50,    46,     3,    44,    48,    63,
+      48,    48,    48,    48,    43,    51,    43,     3,    19,    18,
+      68,    18,    68,    45,    77,    43,    43,     8,    12,    51,
+      65,    67,    73,    18,    65,    18,    75,    73,    73,    19,
+      67,    65,    19,    65,    46,     9,    10,    13,    51,    19,
+      51,    19,    73,    43,    43,    51,    51,    10,    43
 };
 
 #define yyerrok		(yyerrstatus = 0)
@@ -1494,285 +1748,608 @@ yyreduce:
         case 2:
 
 /* Line 1455 of yacc.c  */
-#line 84 "6.y"
-    {	
-									//print_table();
-									if(TypeFlag==0) {printf("Exit status = failure\n");exit(0);}
-									else{
-										//	$$=makenode($2,NULL,_Program,0,DUMMY);
-										//evaltree($2,-1);
-										fp= fopen("outfile.txt","a");
-										CodeGen((yyvsp[(2) - (2)].ptr));
-										int z= fclose(fp);
-										print_table();
-										exit(1);
-									}
+#line 210 "6.y"
+    {	(yyval.ptr) = (yyvsp[(3) - (3)].ptr);
+											main_init((yyvsp[(3) - (3)].ptr));
+											printf("Exit");
+											exit(1);
+									
 								}
     break;
 
   case 3:
 
 /* Line 1455 of yacc.c  */
-#line 99 "6.y"
-    {(yyval.ptr)=(yyvsp[(2) - (3)].ptr); evalDecl((yyvsp[(2) - (3)].ptr),-1);}
+#line 216 "6.y"
+    {		(yyval.ptr) = (yyvsp[(2) - (2)].ptr);
+									main_init((yyvsp[(2) - (2)].ptr));
+									printf("Exit");
+									exit(1);
+								}
     break;
 
   case 4:
 
 /* Line 1455 of yacc.c  */
-#line 102 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_GDefList,0,DUMMY);}
+#line 222 "6.y"
+    {(yyval.ptr)=(yyvsp[(2) - (3)].ptr);fp= fopen("outfile.txt","w+");print_table();}
     break;
 
   case 5:
 
 /* Line 1455 of yacc.c  */
-#line 104 "6.y"
-    {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
+#line 224 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_GDefList,0,DUMMY);}
     break;
 
   case 6:
 
 /* Line 1455 of yacc.c  */
-#line 108 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(2) - (3)].ptr),NULL,GINT,0,DUMMY); }
+#line 225 "6.y"
+    {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
     break;
 
   case 7:
 
 /* Line 1455 of yacc.c  */
-#line 111 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(2) - (3)].ptr),NULL,GBOOL,0,DUMMY); }
+#line 227 "6.y"
+    {(yyval.ptr)=(yyvsp[(2) - (3)].ptr); evalDecl(HEAD,(yyvsp[(2) - (3)].ptr),0,DUMMY); }
     break;
 
   case 8:
 
 /* Line 1455 of yacc.c  */
-#line 116 "6.y"
-    {(yyval.ptr) = (yyvsp[(2) - (3)].ptr);}
+#line 228 "6.y"
+    {(yyval.ptr)=(yyvsp[(2) - (3)].ptr); evalDecl(HEAD,(yyvsp[(2) - (3)].ptr),1,DUMMY); }
     break;
 
   case 9:
 
 /* Line 1455 of yacc.c  */
-#line 120 "6.y"
-    {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
+#line 230 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_GIdList,0,DUMMY);}
     break;
 
   case 10:
 
 /* Line 1455 of yacc.c  */
-#line 122 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_StmtList,0,DUMMY);}
+#line 231 "6.y"
+    {(yyval.ptr)=makenode(NULL,(yyvsp[(1) - (1)].ptr),_GIdList,0,DUMMY);}
     break;
 
   case 11:
 
 /* Line 1455 of yacc.c  */
-#line 128 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(3) - (5)].ptr),NULL,WRITE,0,DUMMY);if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 233 "6.y"
+    {(yyval.ptr)=makenode(NULL,NULL,ID,0,(yyvsp[(1) - (1)].id));}
     break;
 
   case 12:
 
 /* Line 1455 of yacc.c  */
-#line 132 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(3) - (5)].ptr),NULL,READ,0,DUMMY);if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 234 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(3) - (4)].ptr),NULL,ARRAY,0,(yyvsp[(1) - (4)].id));
+							/*MOD : make "expr" integer in grammar*/}
     break;
 
   case 13:
 
 /* Line 1455 of yacc.c  */
-#line 136 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(3) - (8)].ptr),(yyvsp[(6) - (8)].ptr),IF,0,DUMMY);if(!type_check((yyval.ptr),1)==1){ getline();TypeFlag = 0;}}
+#line 236 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(3) - (4)].ptr),NULL,FUNC,0,(yyvsp[(1) - (4)].id));	flush_local();}
     break;
 
   case 14:
 
 /* Line 1455 of yacc.c  */
-#line 141 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(3) - (8)].ptr),(yyvsp[(6) - (8)].ptr),WHILE,0,DUMMY);if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
+#line 237 "6.y"
+    {(yyval.ptr) = makenode(NULL,NULL,FUNC,0,(yyvsp[(1) - (3)].id));}
     break;
 
   case 15:
 
 /* Line 1455 of yacc.c  */
-#line 145 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (4)].ptr),(yyvsp[(3) - (4)].ptr),'=',0,DUMMY);if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
+#line 239 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_ArgList,0,"_ArgList");/*when func is called called*/install_args_to_locals(-1,(yyval.ptr));}
     break;
 
   case 16:
 
 /* Line 1455 of yacc.c  */
-#line 149 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (4)].ptr),(yyvsp[(3) - (4)].ptr),'=',0,DUMMY);if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
+#line 240 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(1) - (1)].ptr),NULL,_ArgList,0,"_ArgList");install_args_to_locals(-1,(yyvsp[(1) - (1)].ptr));}
     break;
 
   case 17:
 
 /* Line 1455 of yacc.c  */
-#line 154 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_Varlist,0,DUMMY);}
+#line 242 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(2) - (2)].ptr),NULL,GINT,0,"arg");}
     break;
 
   case 18:
 
 /* Line 1455 of yacc.c  */
-#line 156 "6.y"
-    {(yyval.ptr)=makenode(NULL,(yyvsp[(1) - (1)].ptr),_Varlist,0,DUMMY);}
+#line 243 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(2) - (2)].ptr),NULL,GBOOL,0,"arg");}
     break;
 
   case 19:
 
 /* Line 1455 of yacc.c  */
-#line 161 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'<',0,DUMMY);	if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 245 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_List,0,"list");}
     break;
 
   case 20:
 
 /* Line 1455 of yacc.c  */
-#line 163 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'>',0,DUMMY);	if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 246 "6.y"
+    {(yyval.ptr) = makenode(NULL,(yyvsp[(1) - (1)].ptr),_List,0,"list");}
     break;
 
   case 21:
 
 /* Line 1455 of yacc.c  */
-#line 165 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),GE,0,DUMMY);		if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 248 "6.y"
+    {(yyval.ptr) = makenode(NULL,NULL,ID,0,(yyvsp[(1) - (1)].id));}
     break;
 
   case 22:
 
 /* Line 1455 of yacc.c  */
-#line 167 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),LE,0,DUMMY);		if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 249 "6.y"
+    {(yyval.ptr) = makenode(NULL,NULL,_pointer,0,(yyvsp[(2) - (2)].id));/*new change*/}
     break;
 
   case 23:
 
 /* Line 1455 of yacc.c  */
-#line 169 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),NE,0,DUMMY);		if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 251 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_Fdeflist,0,"Fdeflist");}
     break;
 
   case 24:
 
 /* Line 1455 of yacc.c  */
-#line 171 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),EQEQ,0,DUMMY);	if(!type_check((yyval.ptr),0)==1) {getline();TypeFlag = 0;}}
+#line 252 "6.y"
+    {(yyval.ptr) = makenode(NULL,(yyvsp[(1) - (1)].ptr),_Fdeflist,0,"Fdeflist");}
     break;
 
   case 25:
 
 /* Line 1455 of yacc.c  */
-#line 173 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(2) - (2)].ptr),NULL,NOT,0,DUMMY);	if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
+#line 254 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_body,0,"Body");}
     break;
 
   case 26:
 
 /* Line 1455 of yacc.c  */
-#line 175 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),AND,0,DUMMY);	if(!type_check((yyval.ptr),1)==1){getline();TypeFlag = 0;}}
+#line 255 "6.y"
+    {(yyval.ptr) = makenode(NULL,(yyvsp[(1) - (1)].ptr),_body,0,"Body");}
     break;
 
   case 27:
 
 /* Line 1455 of yacc.c  */
-#line 177 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),OR,0,DUMMY);		if(!type_check((yyval.ptr),1)==1) {getline();TypeFlag = 0;}}
+#line 258 "6.y"
+    {	/*MOD : Fdef  <-- stmtlist     (improves tree)*/
+								//flush_local();
+								ret_check(0,(yyvsp[(9) - (11)].ptr)->right);
+								
+								int t = func_check1(0,(yyvsp[(2) - (11)].id),(yyvsp[(4) - (11)].ptr));
+								if(t !=-1  ) {getline();TypeFlag=0;}
+
+								struct gnode * temp = fetch(head,(yyvsp[(2) - (11)].id));
+								temp->flabel = Label; Label++;
+								
+								(yyval.ptr) = makenode((yyvsp[(9) - (11)].ptr),makenode((yyvsp[(4) - (11)].ptr),(yyvsp[(7) - (11)].ptr),_junc,0,DUMMY),_Fdef,temp->flabel,(yyvsp[(2) - (11)].id));	//NEW : right child
+								func_code_gen(0,(yyval.ptr));
+								flush_local();
+							}
     break;
 
   case 28:
 
 /* Line 1455 of yacc.c  */
-#line 179 "6.y"
-    {(yyval.ptr)=makenode(NULL,NULL,_Truth,TRUE,DUMMY);}
+#line 274 "6.y"
+    {	
+								//flush_local();
+								ret_check(1,(yyvsp[(9) - (11)].ptr)->right);
+
+								int t = func_check1(1,(yyvsp[(2) - (11)].id),(yyvsp[(4) - (11)].ptr));
+								if(t !=-1  ) {getline();TypeFlag=0;}
+
+								struct gnode * temp = fetch(head,(yyvsp[(2) - (11)].id));
+								temp->flabel = Label; Label++;
+
+								(yyval.ptr) = makenode((yyvsp[(9) - (11)].ptr),makenode((yyvsp[(4) - (11)].ptr),(yyvsp[(7) - (11)].ptr),_junc,1,DUMMY),_Fdef,temp->flabel,(yyvsp[(2) - (11)].id));	//NEW : right child
+								func_code_gen(1,(yyval.ptr));
+
+								flush_local();
+							}
     break;
 
   case 29:
 
 /* Line 1455 of yacc.c  */
-#line 181 "6.y"
-    {(yyval.ptr)=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
+#line 291 "6.y"
+    {
+	 							//flush_local();
+	 							ret_check(0,(yyvsp[(8) - (10)].ptr)->right);
+
+	 							int t = func_check1(0,(yyvsp[(2) - (10)].id),NULL); 
+								if(t !=-1  ) {getline();TypeFlag=0;}
+
+	 							struct gnode * temp = fetch(head,(yyvsp[(2) - (10)].id));
+								temp->flabel = Label; Label++;
+
+	 							(yyval.ptr) = makenode((yyvsp[(8) - (10)].ptr),makenode(NULL,(yyvsp[(6) - (10)].ptr),_junc,1,DUMMY),_Fdef,temp->flabel,(yyvsp[(2) - (10)].id));	//NEW : right child
+	 							
+	 							func_code_gen(0,(yyval.ptr));
+
+								flush_local();
+
+	 						}
     break;
 
   case 30:
 
 /* Line 1455 of yacc.c  */
-#line 183 "6.y"
-    {(yyval.ptr)=(yyvsp[(1) - (1)].ptr); }
+#line 310 "6.y"
+    {
+	 							//flush_local();
+	 							ret_check(1,(yyvsp[(8) - (10)].ptr)->right);
+
+	 							int t = func_check1(1,(yyvsp[(2) - (10)].id),NULL);		
+								if(t !=-1  ) {getline();TypeFlag=0;}
+
+	 							struct gnode * temp = fetch(head,(yyvsp[(2) - (10)].id));
+								temp->flabel = Label; Label++;
+
+	 							(yyval.ptr) = makenode((yyvsp[(8) - (10)].ptr),makenode(NULL,(yyvsp[(6) - (10)].ptr),_junc,1,DUMMY),_Fdef,temp->flabel,(yyvsp[(2) - (10)].id));	//NEW : right child
+	 							
+	 							func_code_gen(1,(yyval.ptr));
+
+								flush_local();
+							}
     break;
 
   case 31:
 
 /* Line 1455 of yacc.c  */
-#line 187 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'+',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
+#line 328 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(2) - (3)].ptr),NULL,RET,0,DUMMY);}
     break;
 
   case 32:
 
 /* Line 1455 of yacc.c  */
-#line 189 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'-',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
+#line 331 "6.y"
+    {(yyval.ptr) = (yyvsp[(2) - (3)].ptr);evalDecl(L_HEAD,(yyvsp[(2) - (3)].ptr),0,DUMMY);}
     break;
 
   case 33:
 
 /* Line 1455 of yacc.c  */
-#line 191 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'*',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
+#line 333 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_LDefList,0,"LDefList");}
     break;
 
   case 34:
 
 /* Line 1455 of yacc.c  */
-#line 193 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'/',0,DUMMY); if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
+#line 334 "6.y"
+    {(yyval.ptr) = makenode(NULL,(yyvsp[(1) - (1)].ptr),_LDefList,0,"LDefList");}
     break;
 
   case 35:
 
 /* Line 1455 of yacc.c  */
-#line 195 "6.y"
-    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_mod,0,DUMMY);if(!type_check((yyval.ptr),0)==0) {getline();TypeFlag = 0;}}
+#line 337 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(2) - (3)].ptr),NULL,GINT,0,"Gint");/*flush_local();/*evalDecl(L_HEAD,$2,0,DUMMY);*/}
     break;
 
   case 36:
 
 /* Line 1455 of yacc.c  */
-#line 197 "6.y"
-    {(yyval.ptr)=makenode(NULL,NULL,INT,(yyvsp[(1) - (1)].val),DUMMY);}
+#line 338 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(2) - (3)].ptr),NULL,GBOOL,0,"Gbool");/*flush_local();/*evalDecl(L_HEAD,$2,0,DUMMY);*/}
     break;
 
   case 37:
 
 /* Line 1455 of yacc.c  */
-#line 199 "6.y"
-    {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
+#line 341 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(1) - (3)].ptr),makenode(NULL,NULL,ID,0,(yyvsp[(3) - (3)].id)),_LIdList,0,DUMMY);}
     break;
 
   case 38:
 
 /* Line 1455 of yacc.c  */
-#line 204 "6.y"
-    {(yyval.ptr)=makenode(NULL,NULL,ID,0,(yyvsp[(1) - (1)].id));}
+#line 342 "6.y"
+    {(yyval.ptr) = makenode(NULL,makenode(NULL,NULL,ID,0,(yyvsp[(1) - (1)].id)),_LIdList,0,DUMMY);}
     break;
 
   case 39:
 
 /* Line 1455 of yacc.c  */
-#line 206 "6.y"
+#line 345 "6.y"
+    {(yyval.ptr) = (yyvsp[(5) - (8)].ptr);//BP = LocNo -1; SP = BP;
+																	flush_local();ret_check(0,(yyvsp[(6) - (8)].ptr));
+																	local_bind_count_init();
+																	bind_locals_to_mem(-1,(yyvsp[(3) - (8)].ptr));			//generate local_table for main
+																	printf("\nMAIN LOCAL TABLE \n");
+																	print_locals();
+																	alloc_mem_for_func_locals((yyval.ptr));
+																	}
+    break;
+
+  case 40:
+
+/* Line 1455 of yacc.c  */
+#line 353 "6.y"
+    {(yyval.ptr) = (yyvsp[(4) - (7)].ptr);
+													flush_local();ret_check(0,(yyvsp[(5) - (7)].ptr));
+													local_bind_count_init();
+													//bind_locals_to_mem(-1,$3);
+													printf("\nMAIN LOCAL TABLE \n");
+													print_locals();
+													alloc_mem_for_func_locals((yyval.ptr));
+													//local_head is null
+													}
+    break;
+
+  case 41:
+
+/* Line 1455 of yacc.c  */
+#line 365 "6.y"
+    {(yyval.ptr)=(yyvsp[(1) - (1)].ptr);}
+    break;
+
+  case 42:
+
+/* Line 1455 of yacc.c  */
+#line 366 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (2)].ptr),(yyvsp[(2) - (2)].ptr),_StmtList,0,DUMMY);}
+    break;
+
+  case 43:
+
+/* Line 1455 of yacc.c  */
+#line 371 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(3) - (5)].ptr),NULL,WRITE,0,"Write"); type_check2((yyval.ptr));}
+    break;
+
+  case 44:
+
+/* Line 1455 of yacc.c  */
+#line 374 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(3) - (5)].ptr),NULL,READ,0,"Read"); type_check2((yyval.ptr));}
+    break;
+
+  case 45:
+
+/* Line 1455 of yacc.c  */
+#line 377 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(3) - (8)].ptr),(yyvsp[(6) - (8)].ptr),IF,0,"If");     type_check2((yyval.ptr));}
+    break;
+
+  case 46:
+
+/* Line 1455 of yacc.c  */
+#line 380 "6.y"
+    { (yyval.ptr)=makenode((yyvsp[(3) - (10)].ptr),makenode((yyvsp[(6) - (10)].ptr),(yyvsp[(8) - (10)].ptr),ELSE,0,"Else"),IF,0,"If");  type_check2((yyval.ptr));}
+    break;
+
+  case 47:
+
+/* Line 1455 of yacc.c  */
+#line 384 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(3) - (8)].ptr),(yyvsp[(6) - (8)].ptr),WHILE,0,"While"); type_check2((yyval.ptr));}
+    break;
+
+  case 48:
+
+/* Line 1455 of yacc.c  */
+#line 387 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (4)].ptr),(yyvsp[(3) - (4)].ptr),'=',0,"=");	type_check2((yyval.ptr));}
+    break;
+
+  case 49:
+
+/* Line 1455 of yacc.c  */
+#line 393 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'<',0,DUMMY); err_arg(1,(yyval.ptr));}
+    break;
+
+  case 50:
+
+/* Line 1455 of yacc.c  */
+#line 394 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'>',0,DUMMY); err_arg(1,(yyval.ptr));}
+    break;
+
+  case 51:
+
+/* Line 1455 of yacc.c  */
+#line 395 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),GE,0,DUMMY);	 err_arg(1,(yyval.ptr));}
+    break;
+
+  case 52:
+
+/* Line 1455 of yacc.c  */
+#line 396 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),LE,0,DUMMY);	 err_arg(1,(yyval.ptr));}
+    break;
+
+  case 53:
+
+/* Line 1455 of yacc.c  */
+#line 397 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),NE,0,DUMMY);	 err_arg(1,(yyval.ptr));}
+    break;
+
+  case 54:
+
+/* Line 1455 of yacc.c  */
+#line 398 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),EQEQ,0,DUMMY);err_arg(1,(yyval.ptr));}
+    break;
+
+  case 55:
+
+/* Line 1455 of yacc.c  */
+#line 399 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(2) - (2)].ptr),NULL,NOT,0,DUMMY);err_arg(1,(yyval.ptr));}
+    break;
+
+  case 56:
+
+/* Line 1455 of yacc.c  */
+#line 400 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),AND,0,DUMMY); err_arg(1,(yyval.ptr));}
+    break;
+
+  case 57:
+
+/* Line 1455 of yacc.c  */
+#line 401 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),OR,0,DUMMY);	 err_arg(1,(yyval.ptr));}
+    break;
+
+  case 58:
+
+/* Line 1455 of yacc.c  */
+#line 403 "6.y"
+    {(yyval.ptr)=makenode(NULL,NULL,_Truth,TRUE,DUMMY);}
+    break;
+
+  case 59:
+
+/* Line 1455 of yacc.c  */
+#line 404 "6.y"
+    {(yyval.ptr)=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
+    break;
+
+  case 60:
+
+/* Line 1455 of yacc.c  */
+#line 406 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'+',0,DUMMY); err_arg(0,(yyval.ptr));}
+    break;
+
+  case 61:
+
+/* Line 1455 of yacc.c  */
+#line 407 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'-',0,DUMMY); err_arg(0,(yyval.ptr));}
+    break;
+
+  case 62:
+
+/* Line 1455 of yacc.c  */
+#line 408 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'*',0,DUMMY); err_arg(0,(yyval.ptr));}
+    break;
+
+  case 63:
+
+/* Line 1455 of yacc.c  */
+#line 409 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),'/',0,DUMMY); err_arg(0,(yyval.ptr));}
+    break;
+
+  case 64:
+
+/* Line 1455 of yacc.c  */
+#line 410 "6.y"
+    {(yyval.ptr)=makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_mod,0,DUMMY);err_arg(0,(yyval.ptr));}
+    break;
+
+  case 65:
+
+/* Line 1455 of yacc.c  */
+#line 411 "6.y"
+    {(yyval.ptr)=makenode(NULL,NULL,INT,(yyvsp[(1) - (1)].val),DUMMY);}
+    break;
+
+  case 66:
+
+/* Line 1455 of yacc.c  */
+#line 412 "6.y"
+    {(yyval.ptr) = (yyvsp[(1) - (1)].ptr);}
+    break;
+
+  case 67:
+
+/* Line 1455 of yacc.c  */
+#line 413 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(3) - (4)].ptr),NULL,FUNC,0,(yyvsp[(1) - (4)].id));}
+    break;
+
+  case 68:
+
+/* Line 1455 of yacc.c  */
+#line 414 "6.y"
+    {(yyval.ptr) = makenode(NULL,NULL,FUNC,0,(yyvsp[(1) - (3)].id));}
+    break;
+
+  case 69:
+
+/* Line 1455 of yacc.c  */
+#line 417 "6.y"
+    {(yyval.ptr) =makenode((yyvsp[(1) - (3)].ptr),(yyvsp[(3) - (3)].ptr),_ExpList,0,"ExpList");}
+    break;
+
+  case 70:
+
+/* Line 1455 of yacc.c  */
+#line 418 "6.y"
+    {(yyval.ptr) =makenode(NULL,(yyvsp[(1) - (1)].ptr),_ExpList,0,"ExpList");}
+    break;
+
+  case 71:
+
+/* Line 1455 of yacc.c  */
+#line 421 "6.y"
+    {(yyval.ptr) = (yyvsp[(1) - (1)].ptr);}
+    break;
+
+  case 72:
+
+/* Line 1455 of yacc.c  */
+#line 422 "6.y"
+    {(yyval.ptr) = makenode(NULL,NULL,_pointer,0,(yyvsp[(2) - (2)].id));/*new change*/}
+    break;
+
+  case 73:
+
+/* Line 1455 of yacc.c  */
+#line 423 "6.y"
+    {(yyval.ptr) = makenode((yyvsp[(4) - (5)].ptr),NULL,_pointer,0,(yyvsp[(2) - (5)].id));}
+    break;
+
+  case 74:
+
+/* Line 1455 of yacc.c  */
+#line 426 "6.y"
+    {(yyval.ptr)=makenode(NULL,NULL,ID,0,(yyvsp[(1) - (1)].id));}
+    break;
+
+  case 75:
+
+/* Line 1455 of yacc.c  */
+#line 427 "6.y"
     {(yyval.ptr)=makenode((yyvsp[(3) - (4)].ptr),NULL,ARRAY,0,(yyvsp[(1) - (4)].id));}
     break;
 
 
 
 /* Line 1455 of yacc.c  */
-#line 1776 "y.tab.c"
+#line 2353 "y.tab.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1984,235 +2561,674 @@ yyreturn:
 
 
 /* Line 1675 of yacc.c  */
-#line 211 "6.y"
+#line 430 "6.y"
 
 
-//version 2   typecheck need to be improved
+//=========================================================================================================
+
+//====================================================================================
 
 
-//returns type or (1 for 'okay' and 0 for 'not okay')
-int type_check(struct node* nd,int i){
-	if(nd == NULL) return i;
 
-	//base case-------------------------
-	if(nd->flag==ID || nd->flag==ARRAY ) {
-
-		struct gnode* temp=fetch(nd->varname);
-		if(temp->type == 0)
-		return 0;
-		else return 1;
-
-	} 
-	if(nd->flag==INT) {
-		return 0;
-	} 	
-
-	if(nd->flag==_Truth){
-
-		return 1;
-	}
-
-
- 	//operators ----------------------------------------
- 	//returns type
-	if(nd->flag=='+'||nd->flag=='-'||nd->flag=='/'||nd->flag=='*'||\
-		nd->flag==_mod ) {
-		
-		//i == 0 : true  since exp has int but no  bools
-		if (type_check(nd->left,0)==0 && type_check(nd->right,0) ==0){
-			return 0;
-		}
-		else{
-			//error msg
-			//printf("Expected int but found bool in operators\n");
-			return 1;
-		}
-		
-	}
-
-	//comparators--------------------------------------------------(can merge comparator and oiperator cases)
-	//returns type
-	if(nd->flag=='>'||nd->flag=='<'||nd->flag==EQEQ||\
-		nd->flag==NE||nd->flag==LE ||nd->flag==GE){
-
-		//i == 0 : true  since exp has int but no  bools
-		if (type_check(nd->left,0)==0 && type_check(nd->right,0) ==0){
-			return 1;
-		}
-		else{
-			//error msg
-			//printf("Expected int but foiund bool in comparators\n");
-			return 0;
-		}
-	}
-
-	//logical connectives--------------------------------------------
-	//returns type
-	else if(nd->flag==AND ||nd->flag==OR||nd->flag==NOT){
-		
-		//i==1 :
-		if (type_check(nd->left,1)==1 &&  type_check(nd->right,1)==1 ) 
-			return 1;
-		else {
-			//erroe msg
-			//printf("Expected bool but found int  --or -- some found some bool in comparators\n");
-			return 0;
-		}
+//temp1 is global node pointer associated with checkargs func only
+struct gnode * temp1;
+//checks for arguments of func in func definitions 
+//----------  not declarations in global symbol table 
+int check_args(struct node *nd,int i){
 	
+	if(nd == NULL ) return  1;
+	switch(nd->flag){
+
+		case _ArgList : {int t= check_args(nd->right,i) ;int u= check_args(nd->left,i); return t&&u;}
+		case GINT : {int t = check_args(nd->left,0); return t;}
+		case GBOOL: {int t = check_args(nd->left,1);return  t;}
+
+		case _List : {int t1 = 0;//strcmp(nd->right->varname,temp1->name);
+
+						if(t1!=0 || (temp1->type != i && temp1->type -5 != i)) {
+							printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp1->type,nd->right->varname,i);
+							return 0;
+						}
+						if(temp1->next) temp1 = temp1->next;
+						int t= check_args(nd->left,i); return t;
+					}
 	}
 
+}
 
-	//assignment---------------------------------------------------------
-	else if(nd->flag== '='){			//i value not considered in te call
+int func_check1(int return_type,char *name,struct node *nd){
 
-		if((type_check(nd->left,0)==type_check(nd->right,0)) ||\
-			(type_check(nd->left,1)==type_check(nd->right,1))){
-			//printf("Left : %d  Right : %d\n",nd->left->val,nd->right->val);
-			return 1;	//okay
-		}
-		else{	
-			printf("TYPE MISMATCH\n");
-			return 0;	//not okaay
-		}
-	}
+	//printf("Asked for checking func %s and arg at %d\n",name,nd->flag);
+	struct gnode *temp;
+	temp = fetch(head,name);
 
-	//@Read---------------------------------------------------------------- 
-	//read only int
-	else if(nd->flag==READ){			//i value for read and write
-		
-		struct gnode * temp= fetch(nd->left->varname);
-		
-		//if left has a ijnt
-		if(temp->type==0) {return 1;} 	//okay
-		else {
-			printf("bools cannot be read\n");
-			return 0;
-		}
+	int flag =1; //init every thing's okay 
 
-	}
+	//if func not present
+	if(!temp){ getline();printf("undeclared function defined");flag =0;exit(1);}
 
-	//Write----------------------------------------------------------------
-	//write only int
-	else if(nd->flag==WRITE){
+	//else
+	//check return type of func
+	//printf("%d && %d\n",temp->type,return_type);
+	if(temp->type-3 != return_type) {getline();printf("return type error\n");flag =0;exit(1);/*error(6)*/}
 
-		if(type_check(nd->left,i)==0) return 1;	//okay
-		else{
-			//error msg
-			//printf("bools cannot be written\n");
-			return 0;
-		}					//not okay
-	}
 
-	//if conditional------------------------------------------------------
-	else if(nd->flag == IF){	
-		
-		if(type_check(nd->left,1)==1) return 1; //okay
-		else{
-			//error msg
-			//printf("Expected bool but found int in  if condition\n");
-			return 0;							//not okay
-		}
-	}
-	
-	//while------------------------------------------------------------
-	else if(nd->flag == WHILE){
+	//temp1 is global node pointer associated with checkargs func only
+	temp1 = temp->args;
 
-		if(type_check(nd->left,1)==1) return 1;
-		else {
-			//error msg
-			//printf("Expected bool but found int in  while condition\n");
-			return 0;
-		}
-	}
-	//end of function : type_check
+	//function name and return type  are okay
+	//check the arguments
+
+	int t  = check_args(nd , -1);
+	if( t == 0 || flag!=1) return -2;
+
+	else return -1; //good
 }
 
 
+//NOTE : ADD func local table at codegen part 
+
+//========================================================================================================
+//helper for list_checker
+int getType(struct node * nd){
+	switch(nd->flag){
+		case _pointer : 
+		case ID : 	{
+						struct gnode * temp = fetch(local_head,nd->varname);
+						if(temp == NULL) temp = fetch(head,nd->varname);
+						if(temp == NULL) {getline();printf("Undeclared var\n");exit(1);}
+						int typ = temp->type;
+						if(temp->type ==5 || temp->type ==6) typ = typ -5;
+						return typ;
+					}
+		case ARRAY : {
+						struct gnode * temp = fetch(head,nd->varname);
+						if(temp == NULL) {getline();printf("Undeclared array\n");exit(1);}
+						return temp->type; 
+					}	
+		case '<' :case '>' :case GE :case LE :case NE :case EQEQ:case NOT :
+		case AND :case OR :case _Truth :	return 1;
+		
+		case '+':case '-':case '%':case '*':case INT : case '/':	return 0;
+		
+		case FUNC : {struct gnode * temp = fetch(head,nd->varname);if(temp) return temp->type-3;}
+		//this is cause : func args cannot have funcs
+	}
+}
+
+//temp2 is global node pointer associated with list_checker func only
+struct gnode * temp2;
+//helpewr function for func_check2
+int list_checker(struct node * nd){
+	if (nd == NULL) return -1;
+	if(nd->right){
+		int t1 = 0;//strcmp(nd->right->varname,temp2->name);
+		//or coulg only check  the type
+		int typ = getType(nd->right);
+		//printf("name : %d at %s\n",nd->flag, nd->right->varname);
+		//printf("typo is here %d expected %d\n",typ,temp2->type );
+		if(t1!=0 || (temp2->type != typ && temp2->type -5 !=typ )) {
+			getline();
+			printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp2->type,nd->right->varname,typ);
+			exit(1);
+		}
+		if(temp2->next) temp2 = temp2->next;		
+		int t= list_checker(nd->left); 		
+		return t;
+	}
+	else printf("something smells\n");
+}
+
+
+//function  In expressions
+int func_check2(struct node * nd){
+
+	struct gnode *temp;
+	temp = fetch(head,nd->varname);
+
+	if(!temp) {getline();printf("undeclared function used\n");exit(1);/*error(7);*/}
+	else if(temp->args != NULL && nd->left == NULL) {getline();printf("Arguments mismatch\n");exit(1);}
+	else if(temp->args == NULL && nd->left != NULL) {getline();printf("Arguments mismatch\n");exit(1);}
+	else if(temp->args == NULL && nd->left == NULL) return temp->type-3;
+	//main part
+	//temp2 is global node pointer associated with list_checker func only
+	if(temp->args != NULL && nd->left != NULL){
+		temp2 = temp->args;		
+		list_checker(nd->left);
+	}
+	return temp->type-3;
+}
+//=============================================================================================
+
+void ret_check(int i,struct node * nd){
+	int t = type_check2(nd->left);
+	if(t != i ) {getline();printf("return type error\n");exit(1);/*error(6)*/}
+	return ;
+}
+//==========================================================================================
+
+//version 2   typecheck need to be improved
+//returns : -1 okay ,-2 not ok , type of the var(0,1)
+//1 for bool ;  0 for int int 
+int type_check2(struct node * nd ){ // -1 is good sign , -2 is bad
+	if(nd== NULL) {return -1;}
+
+	switch(nd->flag){
+
+		case WRITE:	{int l = type_check2(nd->left);if (l == 0 ) return -1;error(3);}
+		case READ : {int l = type_check2(nd->left);return -1;error(4);}
+		case '='  :	{int l = type_check2(nd->left); int r = type_check2(nd->right);if(l==r) return -1;error(5);}
+		case WHILE: {int l = type_check2(nd->left); if (l == 1) return -1;error(4);}
+		case IF   :	{int l = type_check2(nd->left);if(l==1) return -1;error(4);}
+		
+		case '<'  : case '>'  : case EQEQ :case NE   :case LE   :case GE   : 
+		{int l = type_check2(nd->left);int r = type_check2(nd->right);if(l==0 && r==0) return 1;error(3);}
+
+		case '+'  : case '-'  : case '*'  :case _mod :case '/'  : 
+		{int l = type_check2(nd->left); int r = type_check2(nd->right);
+						if(l==0 && r==0) return 0;error(3);}
+		case INT  : return 0;
+		
+		case ARRAY : case ID  : 
+		{/*ADD : arr[exp] checker for exp not to be bool*/
+			if(nd->left){
+				//printf("HERE \n");
+				int t = type_check2(nd->left);
+				if(t != 0) {getline();printf("Error at array exp\n");exit(1);}
+			}
+			struct gnode * temp; temp = fetch(local_head,nd->varname);//printf("%d\n",temp); 
+					//if (temp == NULL) temp = fetch_args(func,nd->varname);
+					if(temp == NULL) temp = fetch(head,nd->varname);
+					if(temp == NULL) {getline();printf("no such var detected\n");exit(1);}
+					int m = temp->type ;
+					if(m == 5 || m == 6) m = m-5; 
+					  return m;		
+		}	
+		case _Truth: {if(nd->val == TRUE || nd->val == 	FALSE) return 1;error(4);}
+
+		case AND :case OR  :case NOT : 
+		{int l = type_check2(nd->left);int r=1; if(nd->right){ r = type_check2(nd->right);} 
+					if(l==1 && r ==1) return 1; error(4);}
+
+		case FUNC : {return func_check2(nd);/*func check in statements like [ a= foo(); ]*/}
+		
+	}
+
+}
+
+void err_arg(int flag,struct node * nd){
+	if(type_check2(nd)!=flag ){
+		getline();
+		printf("Error in exp in arguments\n");
+		exit(1);
+	}
+	return;
+}
 //CODE GENERATION PART=================================================================
 
 
-//free reg after completion of its requirement
-int RegNo = -1;	//range 0-7
 
-//use and increase to size
-int LocNo = 0;	//range 0-25
+//--------------------------------------------
 
-//suggestion : Add error msg for redeclarations;
-void evalDecl(struct node *nd,int i){	//i for type filling in table
-	if(nd == NULL ) return;
+//Episode : INSTALL
+
+//=============================================
+void flush_local(){
+	//free memoey of past local_head
+	/*
+	if(local_head && local_head->next){
+		struct gnode * delnode = local_head->next;	//safe to do like this -- good prctice
+		struct gnode * helper;
+		
+		while(delnode){
+			helper = delnode ;
+			delnode = delnode->next;
+
+			//free(helper->name); 					//so we can free only pointers
+			//free(helper->size);
+			//free(helper->bind);
+			free(helper->next);
+			free(helper->args);
+			
+		}
+	}
+	else if(local_head && local_head->next== NULL){
+		free(local_head->next);
+		free(local_head->args);
+	}
+	*/
+	local_head = NULL;
+	//return;
+}
+
+//INITIALIZERS-----------------------------------------------------------------
+void local_bind_count_init(){
+	agcount = 1;
+	return;
+}
+int get_local_bind_count(){
+	agcount+=1;
+	return agcount-1;
+}
+
+//[BP - 3] for arguments in run stack
+int nastyCount=-3;	//warning : initialize everytime to -3 do nort forget stupid
+
+void arg_bind_count_init(){
+	nastyCount = -3;
+}
+
+int get_arg_bind_count(){	//sophistication can be addded by increasing param
+	nastyCount-=1;
+	return nastyCount+1;
+}
+//-------------------------------------------------------------------------------
+
+void foo(int i, char * _name){
+	struct gnode * temp;
+	temp = (struct gnode *) malloc(sizeof(struct gnode)) ;
+	temp->name = _name;
+	temp->type = i;
+	temp->bind = get_arg_bind_count();
+	//nastyCount--;
+	temp->args = NULL;
+
+	temp->next = local_head;
+	local_head = temp;
+
+
+}
+
+
+void install_args_to_locals(int i,struct node * nd){
+	if (nd == NULL) return;
+	//printf("sam is hwrw\n");
 	switch(nd->flag){
-		case _GDefList: evalDecl(nd->left,i);evalDecl(nd->right,i); break;
-		case GINT: 		evalDecl(nd->left,0); break;
-		case GBOOL: 	evalDecl(nd->left,1); break;
-		case _Varlist: 	evalDecl(nd->left,i);
+		case _ArgList:{install_args_to_locals(i,nd->left);install_args_to_locals(i,nd->right);break;}
+		case GINT :   {install_args_to_locals(0,nd->left);break;}
+		case GBOOL:   {install_args_to_locals(1,nd->left);break;}
+		case _List :  {install_args_to_locals(i,nd->left);
+						if(nd->right->flag == _pointer) i = i+POINT;
+						//printf("I like iceceram %d \n",i);
+						foo(i,nd->right->varname);break;}
+	}
+	return;
+}
+
+// i rep's type : important logic for pointers
+//this func is for tye checking of a function
+void install_local_var(struct node *nd,int i){
+
+	struct gnode * t = fetch(local_head , nd->varname);
+	if (t != NULL) {getline();printf("redeclared var in local \n");exit(1);}
+ 
+	struct gnode * temp;
+	temp = (struct gnode *) malloc(sizeof(struct gnode ));
+
+	//NEED to change the BIND here
+	temp->name = nd->varname;
+	temp->type = i;
+	temp->args = NULL;
+	//initial binding of locals 
+	temp->bind = -100;
+
+	//install locals in local table
+	temp->next = local_head;
+	local_head = temp;
+
+}
+
+
+//at global sym table func declarations
+
+//	t  : func_arg_head 		count for numbering args 	i is return type
+
+void install_args_to_func_in_global(struct gnode *t,struct node *nd,int i,int count){ 
+	if(nd == NULL) return;
+	switch(nd->flag){
+		case _ArgList: {install_args_to_func_in_global(t,nd->left,i,count);install_args_to_func_in_global(t,nd->right,i,count);break;}
+		case GINT : {install_args_to_func_in_global(t,nd->left,0,count);break;}
+		case GBOOL: {install_args_to_func_in_global(t,nd->left,1,count);break;}
+		case _List :{install_args_to_func_in_global(t,nd->left,i,count+1);
+						struct gnode *temp;
+
+
+						temp = (struct gnode *)malloc(sizeof(struct gnode ));
+						temp->name = nd->right->varname;
+						//printf("sai %d\n",nd->right->flag);
+						//NOTICE for pointer: type = 5,6 for int ,bool pointers
+						if(nd->right->flag == _pointer) {i = i+POINT;}
+						temp->type = i;
+						temp->args = NULL;
+						temp->bind = count;
+						temp->next = t->args;
+						t->args = temp;
+						break;
+					}
+	}
+	return;
+}
+
+//allcating space in memory of target machine
+//suggestion : Add error msg for redeclarations;
+//NOTE : I think func arg can be removed since local sym table is being crearted
+
+//flag indicates whether to local_head or global
+void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling in table
+	if(nd == NULL ) {
+		//for relative adddressing of local variable
+		// initialisig after every time
+		return;
+	}
+	switch(nd->flag){
+		//case _GDefList: evalDecl(nd->left,i);evalDecl(nd->right,i); break;
+		//case GINT: 		evalDecl(nd->left,0); break;
+		//case GBOOL: 	evalDecl(nd->left,1); break;
+		case _GIdList: 	evalDecl(Flag,nd->left,i,func);
+
 						if(nd->right->flag==ID) {
-							gentry(nd->right->varname,i,1,LocNo);
+							//printf("same %s\n",nd->right->varname);
+							gentry(nd->right->varname,i,1,LocNo);//1 rep's size
 							LocNo++;
 						}
 						else if(nd->right->flag == ARRAY){
+							//printf("same %s\n",nd->right->varname);
 							int size = nd->right->left->val;
 							gentry(nd->right->varname,i,size,LocNo);
 							LocNo += size;							
 
 						}
-						break;
+						//pointer mark
+						else if(nd->right->flag == FUNC ){
+							//printf("same %s\n",nd->right->varname);
+							struct gnode * temp;
+							//gnode for function in global symbol table
+							temp =(struct gnode *) malloc(sizeof(struct gnode));
+							
+							temp->name = nd->right->varname;
+							int func_type;
+							if(i==0) func_type=3;
+							else if(i == 1) func_type=4;
+
+							//printf("func name %s(%d)\n",nd->right->varname,);
+
+							temp->type = func_type;
+							temp->args = NULL;
+
+							//head is here now use your head
+							temp->next =head;
+							head = temp;
+							install_args_to_func_in_global(temp,nd->right->left,i,0);	
+							//i means nothing but useful in "inst_args_func_glob"
+							//nd->r->l : arg starts	
+
+						}break;
+
+		case _LDefList: evalDecl(Flag,nd->left,i,func);evalDecl(Flag,nd->right,i,func);break;
+		case GINT 	: evalDecl(Flag,nd->left,0,func);break;
+		case GBOOL	: evalDecl(Flag,nd->left,1,func);break;
+
+		case _LIdList: 	evalDecl(Flag,nd->left,i,func);
+						//struct gnode *temp ;
+						//temp = fetch(head,func);
+						//print_table();
+						//printf("type : %d ,i = %d\n",temp->type,i);
+						//if(!temp) {printf("Function undeclared\n");exit(1);}
+						
+						//if(temp->type-3 !=  i) {printf("function of different typecheck\n");exit(1);}
+						install_local_var(nd->right,i);
+
+						break;	
 	}
 }
 
+//=======================================----------------------------------======
 
+//code gen helpers=============================================================
+void printRegStack(){	//needn't touch
+	return;
+	regCallCount++;
 
-int getLoc(char * varname){
+	printf("( %d )regStack : ",regCallCount);
+	int i;
+	for( i=0;i<8;i++){
+		if(regStack[i]==-1 ) break;
+		printf("%d ",regStack[i]);
+	}
+	printf("\n");
 
-	struct gnode * temp;
-	
-	temp = fetch(varname);
-
-	return temp->bind;
 }
 
-int getReg(){
-//Suggestion : Add error msg if RegNo exceeds 7
-	
-	RegNo++;
+void freeReg(int r,struct node * nd){	
+//if reg r at top of reg stack the remove else return error
+	//if(r==0) {printRegStack();return;}
+	if(r < 	0) {getline();printf("cannot free get whe all are free \n");exit(1);}
+	if (RegNo < 0) {getline(); printf("attempt to free reg at -1\n");exit(1);}
+	if(r==RegNo)
+	{	RegNo--;regStack[RegNo+1]=-1;
+		printRegStack();}
+	else{
+		printf("%d cannot happen reg(%d) - %d",lineno,r,RegNo);
+		if(nd) printf("at %d\n",nd->flag);
+		if(nd->left) printf(": l(%d)  ",nd->left->flag);
+		if(nd->right) printf(": r(%d) ",nd->right->flag);printf("\n");
+	}
+}	
 
+//allocates a new register by increasing a global count
+int getReg(){
+	RegNo++;
+	if(RegNo >7) {
+		getline();
+		printf("Exeeded register usage\n");
+		exit(1);
+	}
+	regStack[RegNo] =RegNo;
+	printRegStack(); 
 	int r = RegNo;
-	
 	return r;
 }
 
-void freeReg(int r){	
-//if reg r at top of reg stack the remove else return error
+//gets loc of a var in a reg
+int getLoc(char * varname){	
 
-	//if(r==RegNo)
-	RegNo--;
+	struct gnode * temp;
+	temp = fetch(local_head,varname);
+	if(temp) {
+		int loc = temp->bind;							//fetch in local
+		int r1 = getReg();
+		int r2 = getReg();
+		fprintf(fp,"MOV R%d,BP\n",r1);
+		fprintf(fp,"MOV R%d,%d\n",r2,loc);			
+		fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+		freeReg(r2,NULL);
+		return r1;
+	}
+	
+	else temp = fetch(head,varname);					//fetch in  global tab
 
+	if(temp){
+		int loc = temp->bind;
+		int r = getReg();
+		fprintf(fp, "MOV R%d,%d\n",r,loc);
+		return r;
+	}
+	if(temp == NULL) {getline();printf("Local symbol table -- biscuit\n");exit(1);}
+	//printf("saikumar");
 }
 
+
+int isLocGlobal(int i){
+	if(i>=200000) return 1;
+	else return 0;
+}
+
+//returns (array base addr + location num in expr) in a reg
 int getLocArray(struct node * nd){
 	
 	int r = CodeGen(nd->left);
-
-	int loc = getLoc(nd->varname);
-
-	int r1 = getReg();
-
-	int foo = fprintf(fp,"MOV R%d,%d\n",r1,loc);	//mov r1 loc
-
-	foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);//add r + r1	
-
-	freeReg(r1);
-
+	int r1 = getLoc(nd->varname);
+	int foo = fprintf(fp,"ADD R%d,R%d\n",r,r1);	//add r + r1	
+	freeReg(r1 , nd);
 	return r; //contains final location of array element
-
-
 }
 
+//func used in codegen() 
+int op(struct node* nd , int flag){
+
+	int r1 = CodeGen(nd->left);	//increment for r1 will be done in rec part			
+	int r2 = CodeGen(nd->right);
+
+	switch(flag){
+		case 1:{int foo =  fprintf(fp,"ADD R%d,R%d\n",r1,r2);break;}
+		case 2:{int foo =  fprintf(fp,"SUB R%d,R%d\n",r1,r2);break;}
+		case 3:{int foo =  fprintf(fp,"MUL R%d,R%d\n",r1,r2);break;}
+		case 4:{int foo =  fprintf(fp,"DIV R%d,R%d\n",r1,r2);break;}
+
+		case 5:{int foo =  fprintf(fp,"LT R%d,R%d\n",r1,r2);break;}
+		case 6:{int foo =  fprintf(fp,"GT R%d,R%d\n",r1,r2);break;}
+		case 7:{int foo =  fprintf(fp,"EQ R%d,R%d\n",r1,r2);break;}
+		case 8:{int foo =  fprintf(fp,"LE R%d,R%d\n",r1,r2);break;}
+		case 9:{int foo =  fprintf(fp,"GE R%d,R%d\n",r1,r2);break;}
+		case 10:{int foo =  fprintf(fp,"NE R%d,R%d\n",r1,r2);break;}
+		case 11:{int foo =  fprintf(fp,"MOD R%d,R%d\n",r1,r2);break;}
+	}
+
+	freeReg(r2 , nd);
+
+	return r1;
+}
+
+//CODEGEN===============================================================
 //generates machine code for SIM
 //returns regno to be used at an instance
+
+
+void foo2(int i, char * _name,int _bind){
+	struct gnode * temp;
+	temp = (struct gnode *) malloc(sizeof(struct gnode)) ;
+	temp->name = _name;
+	temp->type = i;
+	temp->args = NULL;
+	temp->bind = _bind;
+
+	temp->next = local_head;
+	local_head = temp;
+}
+
+//add locals to local table and binds them to mem relative to bp
+void bind_locals_to_mem(int i,struct node * nd){
+	int bind;
+	if (nd == NULL) return;
+	switch(nd->flag){
+		case _LDefList : {bind_locals_to_mem(i,nd->left);bind_locals_to_mem(i,nd->right);break;}
+		case GINT : {bind_locals_to_mem(0,nd->left);break;}
+		case GBOOL: {bind_locals_to_mem(1,nd->left);break;}
+		case _LIdList : {
+							bind_locals_to_mem(i,nd->left);
+							struct gnode * temp = fetch(local_head,nd->right->varname);
+							if(temp == NULL)
+							bind = get_local_bind_count();
+
+							foo2(i,nd->right->varname,bind);	//main part
+							break;
+						}
+	}
+	return ;
+}
+//_____________________________________________
+//helper to func_code_gen
+void alloc_mem_for_func_locals(struct node * nd){
+	if(local_head){
+		int m = local_head->bind; printf("val is impoertantianno %d\n", m);
+		///*
+		int r = getReg();
+		fprintf(fp,"MOV R%d, 0\n",r);	//for init-ing all locals to 0
+		print_locals();
+		
+		
+		int  i=0;
+		while(i<m){			//CHANGE : this can be writtren as increasing sp only
+			fprintf(fp,"PUSH R%d\n",r);
+			i=i+1;
+		}
+		
+		freeReg(r,nd);
+		//*/
+		/*
+		//  SP  =  SP  +  m ;
+		int r = getReg();
+		int r1 = getReg();
+		fprintf(fp, "MOV R%d,%d\n",r,m);
+		fprintf(fp, "MOV R%d,SP\n",r1);
+		fprintf(fp, "ADD R%d,R%d\n",r,r1);
+		fprintf(fp,"MOV SP,R%d\n",r);
+		freeReg(r1,nd);
+		freeReg(r,nd);
+		*/
+
+		printf("say hi to me now\n");
+	}
+}
+//ADD : label to func  in gsymtab
+
+void func_code_gen(int i,struct node * nd){
+	if (nd == NULL) return ;
+	switch(nd->flag){
+		//case _Fdeflist : {func_code_gen(i,nd->left);func_code_gen(i,nd->right);break;}
+		case _Fdef : {
+						//make the local table then generate the code
+
+						flush_local();
+						printf("------Visting : %s\n",nd->varname);
+
+						fprintf(fp,"L%d:\n",nd->val);
+						//if(nd->flag != _main)
+						fprintf(fp,"PUSH BP\n");
+						fprintf(fp,"MOV BP,SP\n");
+						local_bind_count_init();
+						arg_bind_count_init();
+						//agcount = 1;				//for local vars
+						//nastyCount = -3;  		//for the sake of arguments -- do you get it?
+						install_args_to_locals(-1,nd->right->left);
+						bind_locals_to_mem(-1,nd->right->right);
+						printf("safty check ");print_locals();
+						//by looking the first (last entered var in local sym tab inc the sp i.e push a reg)
+						alloc_mem_for_func_locals(nd);		//stack manip
+						int r = CodeGen(nd->left);
+
+						//freeReg(r,nd);
+						flush_local();
+						break;	
+						}
+	}
+	return;
+}
+
+int getFuncLabel(char * name){
+	struct gnode * temp = fetch(head, name);
+	return temp->flabel;
+}
+
+
 int CodeGen(struct node *nd){
 	if(nd==NULL) return -1;
-
 	switch(nd->flag){
+		case _body : {CodeGen(nd->left);CodeGen(nd->right);break;}
+
+		case _Truth : 
+					{ int value = 0 ; if(nd->val == TRUE) value =1;
+					  
+					  int r = getReg();
+					  
+					  int foo = fprintf(fp,"MOV R%d,%d\n",r,value);
+					  
+					  return r; 
+					}
+		case _pointer:{
+						int r = get_pointer_addr(nd);
+						return r;
+					}
 		case INT:	{int r = getReg();
 
 					int foo = fprintf(fp,"MOV R%d,%d\n",r,nd->val);
@@ -2221,11 +3237,22 @@ int CodeGen(struct node *nd){
 
 					break;} 
 
+		//club ID and Array
 		case ID :	{int r = getReg();
 					
-					int loc = getLoc(nd->varname);
-					
-					int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+					int r1 = getLoc(nd->varname);
+
+					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);
+
+					struct  gnode * temp  = fetch(local_head,nd->varname);
+
+					if(temp->type == 5 || temp->type == 6){
+
+						fprintf(fp,"MOV R%d,[R%d]\n",r,r);
+
+					} 
+
+					freeReg(r1,nd);
 					
 					return r;
 					
@@ -2237,35 +3264,52 @@ int CodeGen(struct node *nd){
 
 					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);//mov r [r1] 	
 
-					freeReg(r1);
+					freeReg(r1 , nd);
 
 					return r;
 					
 					break;}
 		
-		case '+' :	
-					
-					{int r1 = CodeGen(nd->left);	//increment for r1 will be done in rec part
-					
-					int r2 = CodeGen(nd->right);
+		case _StmtList:{CodeGen(nd->left);CodeGen(nd->right);break;}
 
-					int foo =  fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+		case '+' :	{int reg = op(nd,1); return reg;break;}
+		case '-' :	{int reg = op(nd,2); return reg;break;}
+		case '*' :	{int reg = op(nd,3); return reg;break;}
+		case '/' :	{int reg = op(nd,4); return reg;break;}
+		case '<' :	{int reg = op(nd,5); return reg;break;}
+		case '>' :	{int reg = op(nd,6); return reg;break;}
+		case EQEQ :	{int reg = op(nd,7); return reg;break;}
+		case  LE :	{int reg = op(nd,8); return reg;break;}
+		case  GE :	{int reg = op(nd,9); return reg;break;}
+		case  NE :	{int reg = op(nd,10); return reg;break;}
+		case _mod :	{int reg = op(nd,11); return reg;break;}
 
-					freeReg(r2);
-
-					return r1;	
-
-					break;}
-
+		
 		case '=' :	//one reg for returning remaining canbe disposed off
 					{int r = CodeGen(nd->right);				//right part of =
-
+					//fprintf(fp,"OUT R%d\n",r);
+					//printf("good  ");printRegStack();
 					if(nd->left->flag == ID){
-						int loc = getLoc(nd->left->varname);
-
-						int foo = fprintf(fp,"MOV [%d],R%d\n",loc,r);
 						
-						freeReg(r);
+						int r1 = getLoc(nd->left->varname);
+						//printf("Bad %d\n",r1);
+
+						
+
+						struct gnode* temp  = fetch(local_head,nd->left->varname);
+
+						if(temp->type == 5 || temp->type == 6){
+
+							fprintf(fp,"MOV R%d,[R%d]\n",r1,r1);
+							
+						}
+
+						fprintf(fp,"MOV [R%d], R%d\n",r1,r);
+
+						freeReg(r1,nd);
+						//fprintf(fp,"num = %d\n",r1);
+						//fprintf(fp,"Error123\n");
+						freeReg(r,nd);
 
 						return -1;
 					}
@@ -2276,9 +3320,9 @@ int CodeGen(struct node *nd){
 
 						int foo =  fprintf(fp,"MOV [R%d],R%d\n",r1,r);
 
-						freeReg(r1);
+						freeReg(r1,nd);
 
-						freeReg(r);
+						freeReg(r,nd);
 
 						return -1;						
 
@@ -2286,58 +3330,285 @@ int CodeGen(struct node *nd){
 					
 					break;}
 
-		case _StmtList:{CodeGen(nd->left);CodeGen(nd->right);break;}
+		
 
 		case WRITE : //printing out of register
-					{if(nd->left->flag == ID){
-						
-						int loc = getLoc(nd->left->varname);
-						
-						int r = getReg();
+					{
+						int  r = CodeGen(nd->left);
 
-						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,loc);
+						//printf("sam is here\n");
 
-						foo = fprintf(fp,"OUT R%d\n",r);
+						fprintf(fp,"OUT R%d\n",r);
 
-						freeReg(r);
+						freeReg(r,nd);
 
 						return -1;
 
+						break;}
+
+		case READ :	{//load to register then load to memorand
+
+					int r =getReg();
+
+					if(nd->left->flag == ID){
+
+						int foo = fprintf(fp,"IN R%d\n",r);
+
+						int r1 = getLoc(nd->left->varname);
+
+						struct gnode* temp  = fetch(local_head,nd->left->varname);
+
+						if(temp->type == 5 || temp->type == 6){
+
+							fprintf(fp,"MOV R%d,[R%d]\n",r1,r1);
+							
+						}
+						
+						foo = fprintf(fp,"MOV [R%d],R%d\n",r1,r);
+
+						freeReg(r1,nd);
+
+						freeReg(r,nd);
+
+						return -1;
 
 					}
-					else if(nd->left->flag == ARRAY){
+					else if(nd->left->flag == ARRAY) {
+
+						int foo = fprintf(fp,"IN R%d\n",r);
 
 						int r1 = getLocArray(nd->left);
-						
-						int r = getReg();
 
-						int foo = fprintf(fp,"MOV R%d,[%d]\n",r,r1);
+						foo = fprintf(fp,"MOV [R%d],R%d\n",r1,r);
 
-						foo = fprintf(fp,"OUT R%d\n",r);
+						freeReg(r1,nd);
 
-						freeReg(r);
-
-						freeReg(r1);
+						freeReg(r,nd);
 
 						return -1;
 
-
 					}
+
 					break;}
 
-		//case :
+		case IF:{
+					int r  = CodeGen(nd->left);
+					int l;	//reserved for else part
+					int l1 = Label;
+					Label++;
+					int foo = fprintf(fp,"JZ R%d,L%d\n",r,l1);
+					freeReg(r,nd);
+
+					if(nd->right->flag == ELSE)	{
+						foo = CodeGen(nd->right->left);
+						l = Label;
+						Label++;
+						fprintf(fp, "JMP L%d\n",l);
+					}
+
+					else foo = CodeGen(nd->right);
+					
+					foo = fprintf(fp,"L%d: ",l1);
+
+					if(nd->right->flag == ELSE)	{
+						foo = CodeGen(nd->right->right);
+						fprintf(fp, "L%d:\n",l );
+					}
+
+					
+
+					return -1;
+				}
 
 
+		case AND :{
+					int r1 = CodeGen(nd->left);
 
+					int r2 = CodeGen(nd->right);
+					
+					int foo = fprintf(fp,"MUL R%d,R%d\n",r1,r2);
+
+					freeReg(r2,nd);
+
+					return r1;
+
+					break;
+
+					}
+
+		case OR :{
+					int r1 = CodeGen(nd->left);
+
+					int r2 = CodeGen(nd->right);
+					
+					int r3 = getReg();
+
+					int foo = fprintf(fp,"MOV R%d,R%d\n",r3,r1);
+
+					foo = fprintf(fp,"ADD R%d,R%d\n",r1,r2);
+
+					foo = fprintf(fp,"MUL R%d,R%d\n",r3,r2);
+
+					foo = fprintf(fp,"SUB R%d,R%d\n",r1,r3);
+
+					freeReg(r3,nd);
+
+					freeReg(r2,nd);
+
+					return r1;
+
+					break;
+
+					}
+
+		case NOT :{
+					int r = CodeGen(nd->left);
+
+					int r1 = getReg();
+
+					int foo = fprintf(fp,"MOV R%d,1\n",r1);
+
+					foo = fprintf(fp,"LT R%d,R%d\n",r,r1);
+
+					freeReg(r1,nd);
+
+					return r;
+
+					break;
+
+					}
+
+		case WHILE :{
+						//fprintf(fp, "WHILE start------\n");
+						int l1 = Label;
+						Label++;
+
+						int foo = fprintf(fp,"L%d:",l1);						
+
+						int r = CodeGen(nd->left);
+						
+						int l2 = Label;
+						Label++;
+						foo = fprintf(fp,"JZ R%d,L%d\n",r,l2);
+
+						freeReg(r,nd);
+
+						foo= CodeGen(nd->right);
+
+						foo = fprintf(fp,"JMP L%d\n",l1);
+
+						foo = fprintf(fp,"L%d:",l2);
+
+						//fprintf(fp, "WHILE end--------\n" );
+
+						return -1;
+
+						break;
+
+					}
+
+		case FUNC : {	//ADD : improve this point geta reg free it 
+						//		 in this process you will get the max reg in use
+						printf("Function call %s\n",nd->varname);
+						int r = getReg();
+						freeReg(r,nd);
+						printf("last free reg : %d\n",r-1);
+						int i = 0;
+						while(i<r){ 
+							fprintf(fp, "PUSH R%d\n",i );
+							//freeReg(i,nd);
+							i=i+1;
+						}
+						
+						//ADD : FREE THE REGs
+						
+						push_list(nd->left);
+
+						r = getReg();
+						fprintf(fp, "PUSH R%d\n", r); //return add
+						freeReg(r,nd);
+						int lab = getFuncLabel(nd->varname);
+
+						//CALL the function
+						fprintf(fp,"CALL L%d\n",lab);
+
+						r = getReg();
+						fprintf(fp,"POP R%d\n",r);	//	r == return val i guess
+						
+						pop_list(nd->left);
+						
+						//something's fishy here : how to store return value
+						/*
+						i =0 ;
+						while(i<r){
+							int t = getReg();
+							i = i+1;
+						}
+						*/
+						i=r-1;
+						while(i>=0){
+							fprintf(fp,"POP R%d\n",i);
+							i--;
+						}
+						return r;
+					}
+
+		case RET : {	
+
+						int r = CodeGen(nd->left);
+						int r1 = getReg();
+						int  r2 = getReg();
+						fprintf(fp,"MOV R%d,2\n",r2);
+						fprintf(fp,"MOV R%d,BP\n",r1);
+						fprintf(fp,"SUB R%d,R%d\n",r1,r2);
+						fprintf(fp,"MOV [R%d],R%d\n",r1,r);
+						//fprintf(fp, "MOV [BP - 2], R%d\n",r );
+						freeReg(r2,nd);
+						freeReg(r1,nd);
+						freeReg(r,nd);
+						fprintf(fp, "MOV SP,BP\n");
+						fprintf(fp,"POP BP\n");
+						fprintf(fp,"RET\n");
+						printf("End of a function\n");
+						return -1;
+					}
 	}
-
-
-
 }
 
+//first arg pushed last
+void push_list(struct node * nd){
 
+	if(nd == NULL) return;
 
+	//this sequence is important and arg names must match exactly
 
+	//pusing the value only (change the strat for pointers)
+	int r = CodeGen(nd->right);
+
+	fprintf(fp,"PUSH R%d\n",r);
+
+	freeReg(r,nd->right);
+
+	push_list(nd->left);
+
+	return;
+}
+
+void pop_list(struct node * nd){
+	if (nd == NULL) return;
+
+	pop_list(nd->left);
+
+	int r =getReg();
+
+	fprintf(fp,"POP R%d\n",r);
+
+	freeReg(r,nd->right);
+
+	return ;
+}
+
+//Old code need not be looked at
 
 //========================EVAL TREE
 

@@ -45,30 +45,32 @@
      READ = 261,
      IF = 262,
      THEN = 263,
-     ENDIF = 264,
-     WHILE = 265,
-     DO = 266,
-     ENDWHILE = 267,
-     EQEQ = 268,
-     INTEGER = 269,
-     MAIN = 270,
-     EXIT = 271,
-     SILBEGIN = 272,
-     END = 273,
-     DECL = 274,
-     ENDDECL = 275,
-     GBOOL = 276,
-     GINT = 277,
-     INTD = 278,
-     BOOLD = 279,
-     TRUE = 280,
-     FALSE = 281,
-     LE = 282,
-     GE = 283,
-     NE = 284,
-     AND = 285,
-     OR = 286,
-     NOT = 287
+     ELSE = 264,
+     ENDIF = 265,
+     WHILE = 266,
+     DO = 267,
+     ENDWHILE = 268,
+     EQEQ = 269,
+     INTEGER = 270,
+     MAIN = 271,
+     EXIT = 272,
+     SILBEGIN = 273,
+     END = 274,
+     DECL = 275,
+     ENDDECL = 276,
+     RET = 277,
+     GBOOL = 278,
+     GINT = 279,
+     INTD = 280,
+     BOOLD = 281,
+     TRUE = 282,
+     FALSE = 283,
+     LE = 284,
+     GE = 285,
+     NE = 286,
+     AND = 287,
+     OR = 288,
+     NOT = 289
    };
 #endif
 /* Tokens.  */
@@ -78,30 +80,32 @@
 #define READ 261
 #define IF 262
 #define THEN 263
-#define ENDIF 264
-#define WHILE 265
-#define DO 266
-#define ENDWHILE 267
-#define EQEQ 268
-#define INTEGER 269
-#define MAIN 270
-#define EXIT 271
-#define SILBEGIN 272
-#define END 273
-#define DECL 274
-#define ENDDECL 275
-#define GBOOL 276
-#define GINT 277
-#define INTD 278
-#define BOOLD 279
-#define TRUE 280
-#define FALSE 281
-#define LE 282
-#define GE 283
-#define NE 284
-#define AND 285
-#define OR 286
-#define NOT 287
+#define ELSE 264
+#define ENDIF 265
+#define WHILE 266
+#define DO 267
+#define ENDWHILE 268
+#define EQEQ 269
+#define INTEGER 270
+#define MAIN 271
+#define EXIT 272
+#define SILBEGIN 273
+#define END 274
+#define DECL 275
+#define ENDDECL 276
+#define RET 277
+#define GBOOL 278
+#define GINT 279
+#define INTD 280
+#define BOOLD 281
+#define TRUE 282
+#define FALSE 283
+#define LE 284
+#define GE 285
+#define NE 286
+#define AND 287
+#define OR 288
+#define NOT 289
 
 
 
@@ -111,7 +115,7 @@ typedef union YYSTYPE
 {
 
 /* Line 1676 of yacc.c  */
-#line 31 "6.y"
+#line 163 "6.y"
 
 	int val;
 	char* id;
@@ -120,7 +124,7 @@ typedef union YYSTYPE
 
 
 /* Line 1676 of yacc.c  */
-#line 124 "y.tab.h"
+#line 128 "y.tab.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

@@ -1,0 +1,83 @@
+decl
+	Integer a[16], partition(Integer p,r);
+	Integer quicksort(Integer p,r); 
+	Integer swap(Integer &x,&y),print(Integer n);
+enddecl
+
+Integer swap(Integer &x,&y){
+	decl
+		Integer temp;
+	enddecl
+	begin
+		temp = x;
+		x=y;
+		y=temp;
+		return 1;
+	end
+}
+
+Integer partition(Integer p,r){
+decl
+	Integer x,i,j,dummy;
+enddecl	
+begin
+	x=a[r];
+	i=p-1;
+	j=p;
+	while(j<r) do
+		if (a[j] <= x) then
+			i=i+1;
+			dummy=swap(&a[i],&a[j]);
+		endif;
+		j=j+1;
+	endwhile;
+	dummy=swap(&a[i+1],&a[r]);
+	return i+1;
+end
+}
+
+Integer quicksort(Integer p,r){
+decl
+	Integer q, dummy;
+enddecl
+begin
+	if(p<r) then
+		q = partition(p,r);
+		dummy = quicksort(q+1,r);
+	endif;
+	return 1;
+end
+}
+Integer print(Integer n){
+decl
+	Integer i;
+enddecl
+begin
+	i=1;
+	while(i<=n) do
+		write(a[i]);
+		i=i+1;
+	endwhile;
+	return 1;
+end
+}
+main(){
+	decl
+		Integer i;
+		Integer temp1;
+	enddecl
+	begin
+		i = 1;
+		while(i<=15) do
+			a[i] = 16-i;
+			i = i + 1;
+		endwhile;
+		temp1 = print(15);
+		temp1 = quicksort(1,15);
+		write(111111111);
+		temp1 = print(15);
+		
+		return 1;
+	end
+}
+

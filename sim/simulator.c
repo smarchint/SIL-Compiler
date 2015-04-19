@@ -11,7 +11,44 @@ void Initialize (void);
 void Executeoneinstr (int);
 int Find(char*);
 void Operanderror(char*,int);
+//Added by me---------------------
+void printMem(){
+	printf("Memory :");
+	int i=0;
+	for(i=0;i<25;i++){
+		printf("%d ",mem[i]);
+	}
+	printf("\n");
+}
+void printActRec(int bp,int sp,int index){
+	if(index == 0)
+	printf("AT FUNCT CALL\n");
+	else printf("AT FUNC RET\n");
+	printf("BP : %d\n",bp);
+	printf("SP : %d\n",sp);
+	printf("ActivRcd :");
+	int i=0;
+	for(i=bp;i<25;i++){
+		printf("%d ",mem[i]);
+	}
+	printf("\n");
+}
+void printReg(){
+	printf("Reg : ");
+	int i=0;
+	for (i = 0;i<8;i++){
+		printf("(%d)%d ",i,reg[i]);
+	}
+	printf("\n");
 
+}
+void status(int bp,int sp,int i){
+	printActRec(bp,sp,i);
+	printMem();
+	printReg();
+
+}
+//--------------------------------
 main(int argc,char **argv)
 {
 	int instr;
@@ -66,6 +103,9 @@ void Executeoneinstr(int instr)
 {
 	int opnd1,opnd2,flag1,flag2,oper,result;
 	char label[BUFF];
+	int i;
+	if(bp < 0 ){printf("error bp : %d at %d\n",bp,line_count);exit(1);}
+	if(sp < 0 ){printf("error sp : %d at %d\n",sp,line_count);exit(1);}
 	switch(instr)
 	{
 		case MOV:opnd1 = yylex();
@@ -198,6 +238,7 @@ void Executeoneinstr(int instr)
 					if(yylval.flag != REG)
 						Operanderror("JZ",1);
 					opnd2 = yylex();
+
 					if(opnd2 != LABEL)
 						Operanderror("JZ",2);
 					if((result = Find(yylval.data))<0)
@@ -274,9 +315,14 @@ void Executeoneinstr(int instr)
 					  break;
 			 }
 			 break;
-		case CALL:opnd1 = yylex();
+		case CALL:
+				opnd1 = yylex();
+			  //if(opnd1 == LABEL) printf("I do have a rirht\n");
 			  if(opnd1 != LABEL)
 				  Operanderror("CALL",1);
+				
+				//status(bp,sp,0);
+				
 			  mem[++sp] = ftell(yyin)-1;
 			  stack[++top] = line_count;
 			  if((result = Find(yylval.data))<0)
@@ -288,6 +334,7 @@ void Executeoneinstr(int instr)
 			  YY_FLUSH_BUFFER;
 			  break;
 		case RET:
+			//status(bp,sp,1);
 			 if(top==0)
 			 { 
 				printf("<ERROR:%d:>Stack Underflow\n",line_count);
@@ -312,7 +359,7 @@ void Executeoneinstr(int instr)
 			 break;
 		case HALT:printf("\nHALTING MACHINE\n");
 			  exit(0);
-		default:printf("<ERROR:%d:>Illegal instruction\n");
+		default:printf("<ERROR:%d:>Illegal instruction\n",line_count);
 			exit(0);
 	}
 }

@@ -1,69 +1,34 @@
 decl
-	Integer a,b,c,arr[10];
-	bool  d,e,f,h;
+	Integer j,fact(Integer n),foo(); 
+enddecl
+
+
+Integer fact(Integer n){
+decl	
+	Integer temp,rval;
 enddecl
 begin
-	a=10;b=23;c=45;
-	arr[5]=66;
 
-	d=True;
-	f=True;
-	
-	write(c);
-
-	if(a>=b) then 
-		write(b%3);
+	if (n <= 1) then
+		rval = 1;
+	else
+		rval = n*fact(n-1);
 	endif;
-	d=True;	 	
-	f=True;
-	e=False;
-
-	
-	if(1<2 && 2<3)then
-		write(230000);
-	endif;
-	
-	
-	if( d && e || f)then
-		write(10000);
-
-	if( f || d) then
-		write(40000);
-	endif;
+	return rval;
+end
+}
 
 
-	if(d && d) then
-		write(50000);
-	endif;
-
-
-	d=1<2 && 2<3;
-	if(d)then
-		write(1234);
-	endif;
-
-	if(!e || e) then
-		write(30001);
-	endif;
-
-	e=True;
-	f=e;
-	d=False;
-
-	if(!e && f) then
-		write(30000);
-	endif;
-
-
-	d=False	;
-	if(!d) then write(2345); endif;
-	endif;
-
-
-
+main(){
+decl
+	Integer a,i,j;
+enddecl
+begin
+	a = 3;
+	a = fact(fact(a));
+	write(a);
+	write(1000001);
+	return 0;
 end
 
-	
-	
-
-		
+}

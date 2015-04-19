@@ -1,0 +1,53 @@
+decl
+	Integer j,fact(Integer &n); 
+enddecl
+
+
+Integer fact(Integer &n){
+decl	
+	Integer temp,rval;
+enddecl
+begin
+
+	if (n <= 1) then
+		rval = 1;
+	else
+		rval = n*fact(n-1);
+	endif;
+	return rval;
+end
+}
+
+Integer foo(){
+decl
+	Integer i,j;
+enddecl
+begin
+	i=2;
+	j=2;
+	while(j<10)do
+		write(fact(j));
+		j=j+1;
+	endwhile;
+	write(fact(4));
+
+	return 0;
+end
+}
+
+main(){
+decl
+	Integer a,i,j;
+enddecl
+begin
+	i=2;
+	j=2;
+	while(j<10)do
+		write(fact(&j));
+		j=j+1;
+	endwhile;
+	write(1000001);
+	return 0;
+end
+
+}

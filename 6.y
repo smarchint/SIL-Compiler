@@ -134,14 +134,24 @@ int get_pointer_val(char* _name){
 	return r;
 }
 
-int get_pointer_addr(char * _name){
+int get_pointer_addr(struct node * nd){
 	int r = getReg();
 	int r1 = getReg();
-	struct gnode * temp = fetch(local_head,_name);
+	int flag = 0;		//to distinguish from global to local -- BP issue in global
+	struct gnode * temp;
+	temp = fetch(head,nd->varname);
+	if(temp == NULL) temp = fetch(local_head,nd->varname);
+	else flag =1;
 	if(temp  ==  NULL) {error(10);}
 	int m = temp->bind;
 	fprintf(fp,"MOV R%d,%d\n",r,m);
-	fprintf(fp,"MOV R%d,BP\n",r1);
+	if(nd->left) {
+		int r2 = CodeGen(nd->left);
+		fprintf(fp,"ADD R%d,R%d\n",r,r2);
+		freeReg(r2,nd);
+	}
+	fprintf(fp,"MOV R%d,0\n",r1);
+	if(flag!=1) fprintf(fp,"MOV R%d,BP\n",r1);
 	fprintf(fp,"ADD R%d,R%d\n",r,r1 );
 	freeReg(r1,NULL);
 	return r;
@@ -241,8 +251,8 @@ item 	:  ID 				{$$ = makenode(NULL,NULL,ID,0,$1);}
 FdefList : FdefList Fdef 	{$$ = makenode($1,$2,_Fdeflist,0,"Fdeflist");}
 		| Fdef 				{$$ = makenode(NULL,$1,_Fdeflist,0,"Fdeflist");}
 		;
-Body : StmtList retExp 	{$$ = makenode($1,$2,_body,0,"Body");}
-	|	retExp			{$$ = makenode(NULL,$1,_body,0,"Body");}
+Body : StmtList retExp 		{$$ = makenode($1,$2,_body,0,"Body");}
+	|	retExp				{$$ = makenode(NULL,$1,_body,0,"Body");}
 	;
 Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'  
 							{	/*MOD : Fdef  <-- stmtlist     (improves tree)*/
@@ -410,6 +420,7 @@ ExpList : ExpList ',' Expr1  {$$ =makenode($1,$3,_ExpList,0,"ExpList");}
 
 Expr1 : Expr 				{$$ = $1;}
 		| '&' ID            {$$ = makenode(NULL,NULL,_pointer,0,$2);/*new change*/}
+		| '&' ID '['Expr ']'{$$ = makenode($4,NULL,_pointer,0,$2);}
 		;
 
 Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
@@ -421,7 +432,6 @@ Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 //=========================================================================================================
 
 //====================================================================================
-
 
 
 
@@ -520,7 +530,8 @@ int list_checker(struct node * nd){
 		int t1 = 0;//strcmp(nd->right->varname,temp2->name);
 		//or coulg only check  the type
 		int typ = getType(nd->right);
-		printf("typo is here %d\n",typ );
+		//printf("name : %d at %s\n",nd->flag, nd->right->varname);
+		//printf("typo is here %d expected %d\n",typ,temp2->type );
 		if(t1!=0 || (temp2->type != typ && temp2->type -5 !=typ )) {
 			getline();
 			printf("mismatch in arguments of func (%s %d - %s %d)\n",temp1->name,temp2->type,nd->right->varname,typ);
@@ -1080,7 +1091,7 @@ int CodeGen(struct node *nd){
 					  return r; 
 					}
 		case _pointer:{
-						int r = get_pointer_addr(nd->varname);
+						int r = get_pointer_addr(nd);
 						return r;
 					}
 		case INT:	{int r = getReg();

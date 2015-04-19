@@ -1,43 +1,41 @@
 decl
-	Integer i,j,swap(Integer &a,&b); 
+	Integer i,j,swap(bool &a,&b); 
 enddecl
 
 
 
-Integer swap(Integer &a,&b){
+Integer swap(bool &a,&i){
 decl
-	Integer temp;
+	bool temp;
 enddecl
 
 begin
 	temp = a;
-	a=b;
-	b=temp;
+	a=i;
+	i=temp;
 	return 0;
 end
 
 }
 
-
-
 main(){
 decl
-	Integer a,b,i;
+	bool a,b;
+	Integer i,j;
 enddecl
 begin
-	a=1;b=2;
-	write(a);
-	write(b);
+	i=10;j=20;
+	a=True;b=False;
 	i = swap(&a,&b);
-	write(a);
-	write(b);
+	if (a) then write(i); endif;
+	if (b) then write(j); endif;
 	write(100001);
 	return 0;
 end
 
 }
 
-
+//boolean swap using pass by reference
 
 
 
