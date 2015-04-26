@@ -1,5 +1,5 @@
 decl
-	Integer i,j,swap(bool &a,&b); 
+	Integer i,red,j,swap(bool &a,&b); 
 enddecl
 
 
@@ -15,7 +15,6 @@ begin
 	i=temp;
 	return 0;
 end
-
 }
 
 main(){

@@ -2,7 +2,9 @@ decl
 Integer a[16]; 
 Integer partition(Integer p,r); 
 bool quicksort(bool t; Integer p,r); 
-Integer swap(Integer &x,&y);
+Integer swap(Integer &x,&y),print(Integer n);
+Integer search(Integer e,i,n);
+Integer bsearch(Integer l,r,m,size,e);
 enddecl
 
 
@@ -52,34 +54,89 @@ enddecl
 	return True;
 	end
 }
+Integer print(Integer n){
+decl
+	Integer i;
+enddecl
+begin
+	i=0;
+	while(i<n)do 
+		write(a[i]);
+		i = i +1;
+	endwhile;
+	return 1;
+end
+}
 
- main(){
+
+Integer search(Integer e,i,n){
+decl
+	Integer temp;
+enddecl
+begin
+	temp = 1;
+	if(i==n) then
+		temp = 100;
+	else 
+		if(a[i] == e) then
+			temp = i;
+		else
+			temp = search(e,i+1,n);
+		endif; 
+		
+	endif;
+	return temp;
+end
+}
+Integer bsearch(Integer l,r,m,size,e){
+decl
+	Integer temp,i;
+enddecl
+begin
+
+	if(l==m || m==size && a[m] != e) then
+	 	i = 100;
+	else
+		if(a[m] == e) then	
+			i = m;
+		else
+			if(a[m] < e) then
+				temp = r+m ;
+				temp = temp/2;
+				i = bsearch(m+1,r,temp,size,e);
+			else
+				temp = l+m;
+				temp = temp/2;
+				i = bsearch(l,m-1,temp,size,e);
+			endif;
+			
+		endif;
+
+	endif;
+	
+	return i;
+end
+}
+main(){
 	decl
-		Integer i;
+		Integer i,j,t;
 		bool temp1;
 	enddecl
 	begin
-		i = 1;
+		i = 0;
+		read(j);
 		while(i<=15) do
 			a[i] = 16-i;
 			i = i + 1;
 		endwhile;
-		i=1;
-		while(i<=15) do
-			write(a[i]);
-			i=i+1;
-		endwhile;
-		temp1 = quicksort(True,1,15);
+		t = print(16);
+		temp1 = quicksort(True,0,15);
 		write(111111111);
-		i = 1;
-		while(i<=15) do
-			write(a[i]);
-			i = i + 1;
-		endwhile;
-		
+		t = print(16);
+		t = search(4,0,16);
+		write(t);
+		t = bsearch(0,15,7,16,4);
+		write(t);
 		return 1;
 	end
 }
-
-
-//quick sort working

@@ -114,16 +114,16 @@ void main_init(struct node * nd){
 void error(int i){
 	getline();
 	switch(i){
-		case 1: {printf("Undeclared Variable\n");}
-		case 2: {printf("Redeclared Variable\n");}
-		case 3: {printf("Expected int\n");}
-		case 4: {printf("Expected bool\n");}
-		case 5: {printf("Type Mismatch\n");}
-		case 6: {printf("Return type error\n");}
-		case 7: {printf("Undeclared function\n");}
-		case 8: {printf("redeclared function\n");}
-		case 9: {printf("arguments mismatch\n");}
-		case 10:{printf("argument pointer error\n");}
+		case 1: {printf("Undeclared Variable\n");break;}
+		case 2: {printf("Redeclared Variable\n");break;}
+		case 3: {printf("Expected int\n");break;}
+		case 4: {printf("Expected bool\n");break;}
+		case 5: {printf("Type Mismatch\n");break;}
+		case 6: {printf("Return type error\n");break;}
+		case 7: {printf("Undeclared function\n");break;}
+		case 8: {printf("redeclared function\n");break;}
+		case 9: {printf("arguments mismatch\n");break;}
+		case 10:{printf("argument pointer error\n");break;}
 	}
 	exit(1);
 }
@@ -233,7 +233,11 @@ GIdList :	GIdList ',' GId  {$$=makenode($1,$3,_GIdList,0,DUMMY);}
 GId : ID 					{$$=makenode(NULL,NULL,ID,0,$1);}
 	| ID '[' Expr ']'		{$$=makenode($3,NULL,ARRAY,0,$1);
 							/*MOD : make "expr" integer in grammar*/}
-	| ID '(' ArgList ')'   	{$$ = makenode($3,NULL,FUNC,0,$1);	flush_local();}
+	| ID '(' ArgList ')'   	{$$ = makenode($3,NULL,FUNC,0,$1);
+
+
+
+							flush_local();}
 	| ID '(' ')'			{$$ = makenode(NULL,NULL,FUNC,0,$1);}
 	;
 ArgList : ArgList ';' Arg 	{$$ = makenode($1,$3,_ArgList,0,"_ArgList");/*when func is called called*/install_args_to_locals(-1,$$);}
@@ -263,7 +267,7 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'
 								if(t !=-1  ) {getline();TypeFlag=0;}
 
 								struct gnode * temp = fetch(head,$2);
-								temp->flabel = Label; Label++;
+								//temp->flabel = Label; Label++;
 								
 								$$ = makenode($9,makenode($4,$7,_junc,0,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 								func_code_gen(0,$$);
@@ -279,7 +283,7 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'
 								if(t !=-1  ) {getline();TypeFlag=0;}
 
 								struct gnode * temp = fetch(head,$2);
-								temp->flabel = Label; Label++;
+								//temp->flabel = Label; Label++;
 
 								$$ = makenode($9,makenode($4,$7,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 								func_code_gen(1,$$);
@@ -296,7 +300,7 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'
 								if(t !=-1  ) {getline();TypeFlag=0;}
 
 	 							struct gnode * temp = fetch(head,$2);
-								temp->flabel = Label; Label++;
+								//temp->flabel = Label; Label++;
 
 	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 	 							
@@ -315,7 +319,7 @@ Fdef : GINT ID '(' ArgList ')' '{' LDefblock SILBEGIN Body END  '}'
 								if(t !=-1  ) {getline();TypeFlag=0;}
 
 	 							struct gnode * temp = fetch(head,$2);
-								temp->flabel = Label; Label++;
+								//temp->flabel = Label; Label++;
 
 	 							$$ = makenode($8,makenode(NULL,$6,_junc,1,DUMMY),_Fdef,temp->flabel,$2);	//NEW : right child
 	 							
@@ -331,7 +335,7 @@ retExp : RET Expr ';'  {$$ = makenode($2,NULL,RET,0,DUMMY);}
 LDefblock 	: DECL LDefList ENDDECL   {$$ = $2;evalDecl(L_HEAD,$2,0,DUMMY);}
 
 LDefList	:LDefList LDecl {$$ = makenode($1,$2,_LDefList,0,"LDefList");}
-			| LDecl			{$$ = makenode(NULL,$1,_LDefList,0,"LDefList");}
+			| LDecl			{$$ = makenode(NULL,$1,_LDefList,0,"LDefList");printf("--------------------------\n");}
 			;
 
 LDecl 	: GINT LIdList ';'	{$$ = makenode($2,NULL,GINT,0,"Gint");/*flush_local();/*evalDecl(L_HEAD,$2,0,DUMMY);*/}
@@ -390,24 +394,24 @@ Stmt : WRITE '(' Expr ')' ';'
 
 
 
-Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY); err_arg(1,$$);}
-		| Expr '>' Expr    	{$$=makenode($1,$3,'>',0,DUMMY); err_arg(1,$$);}
-		| Expr GE Expr   	{$$=makenode($1,$3,GE,0,DUMMY);	 err_arg(1,$$);}
-		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);	 err_arg(1,$$);}	
-		| Expr NE Expr   	{$$=makenode($1,$3,NE,0,DUMMY);	 err_arg(1,$$);}
-		| Expr EQEQ Expr   	{$$=makenode($1,$3,EQEQ,0,DUMMY);err_arg(1,$$);}
-		| '!' Expr  		{$$=makenode($2,NULL,NOT,0,DUMMY);err_arg(1,$$);}
-		| Expr AND Expr		{$$=makenode($1,$3,AND,0,DUMMY); err_arg(1,$$);}
-		| Expr OR Expr		{$$=makenode($1,$3,OR,0,DUMMY);	 err_arg(1,$$);}
+Expr  : Expr '<' Expr    	{$$=makenode($1,$3,'<',0,DUMMY); /*err_arg(1,$$);*/}
+		| Expr '>' Expr    	{$$=makenode($1,$3,'>',0,DUMMY); /*err_arg(1,$$);*/}
+		| Expr GE Expr   	{$$=makenode($1,$3,GE,0,DUMMY);	 /*err_arg(1,$$);*/}
+		| Expr LE Expr    	{$$=makenode($1,$3,LE,0,DUMMY);	 /*err_arg(1,$$);*/}	
+		| Expr NE Expr   	{$$=makenode($1,$3,NE,0,DUMMY);	 /*err_arg(1,$$);*/}
+		| Expr EQEQ Expr   	{$$=makenode($1,$3,EQEQ,0,DUMMY);/*err_arg(1,$$);*/}
+		| '!' Expr  		{$$=makenode($2,NULL,NOT,0,DUMMY);/*err_arg(1,$$);*/}
+		| Expr AND Expr		{$$=makenode($1,$3,AND,0,DUMMY); /*err_arg(1,$$);*/}
+		| Expr OR Expr		{$$=makenode($1,$3,OR,0,DUMMY);	 /*err_arg(1,$$);*/}
 
 		| TRUE				{$$=makenode(NULL,NULL,_Truth,TRUE,DUMMY);} 
 		| FALSE				{$$=makenode(NULL,NULL,_Truth,FALSE,DUMMY);}
 
-		| Expr '+' Expr		{$$=makenode($1,$3,'+',0,DUMMY); err_arg(0,$$);}
-		| Expr '-' Expr		{$$=makenode($1,$3,'-',0,DUMMY); err_arg(0,$$);}
-		| Expr '*' Expr		{$$=makenode($1,$3,'*',0,DUMMY); err_arg(0,$$);}
-		| Expr '/' Expr		{$$=makenode($1,$3,'/',0,DUMMY); err_arg(0,$$);}
-		| Expr '%' Expr		{$$=makenode($1,$3,_mod,0,DUMMY);err_arg(0,$$);}
+		| Expr '+' Expr		{$$=makenode($1,$3,'+',0,DUMMY); /*err_arg(1,$$);*/}
+		| Expr '-' Expr		{$$=makenode($1,$3,'-',0,DUMMY);/*err_arg(1,$$);*/}
+		| Expr '*' Expr		{$$=makenode($1,$3,'*',0,DUMMY); /*err_arg(1,$$);*/}
+		| Expr '/' Expr		{$$=makenode($1,$3,'/',0,DUMMY); /*err_arg(1,$$);*/}
+		| Expr '%' Expr		{$$=makenode($1,$3,_mod,0,DUMMY);/*err_arg(1,$$);*/}
 		| INT 				{$$=makenode(NULL,NULL,INT,$1,DUMMY);}
 		| Var   			{$$ = $1;}
 		| ID '(' ExpList ')'{$$ = makenode($3,NULL,FUNC,0,$1);}
@@ -433,7 +437,21 @@ Var		: ID 				{$$=makenode(NULL,NULL,ID,0,$1);}
 
 //====================================================================================
 
+void func_check_list(struct node * nd,struct gnode *temp ){
+	if (nd == NULL) return;
+	else if (temp != NULL){
 
+		int t = getType(nd->left);
+		int typ = temp->type;
+		printf("temp->bind = %d , getType = %d\n",typ,t);
+		if (typ >= 5) typ = typ -5;
+		else if(typ >= 3) typ = typ - 3;
+		if(typ != t) {getline();printf("Error in arguments of func\n");exit(1);}
+		func_check_list(nd->right,temp->next);
+	} 
+	//else{getline();printf("Mismatch in number of args in func\n");exit(1);}
+	return;
+}
 
 //temp1 is global node pointer associated with checkargs func only
 struct gnode * temp1;
@@ -819,6 +837,7 @@ void evalDecl(int Flag,struct node *nd,int i,char * func){	// i for type filling
 
 							temp->type = func_type;
 							temp->args = NULL;
+							temp->flabel = Label; Label++; 
 
 							//head is here now use your head
 							temp->next =head;
@@ -915,6 +934,7 @@ int getLoc(char * varname){
 	if(temp){
 		int loc = temp->bind;
 		int r = getReg();
+
 		fprintf(fp, "MOV R%d,%d\n",r,loc);
 		return r;
 	}
@@ -1032,7 +1052,7 @@ void alloc_mem_for_func_locals(struct node * nd){
 		freeReg(r,nd);
 		*/
 
-		printf("say hi to me now\n");
+		//printf("say hi to me now\n");
 	}
 }
 //ADD : label to func  in gsymtab
@@ -1057,7 +1077,7 @@ void func_code_gen(int i,struct node * nd){
 						//nastyCount = -3;  		//for the sake of arguments -- do you get it?
 						install_args_to_locals(-1,nd->right->left);
 						bind_locals_to_mem(-1,nd->right->right);
-						printf("safty check ");print_locals();
+						//printf("safty check ");print_locals();
 						//by looking the first (last entered var in local sym tab inc the sp i.e push a reg)
 						alloc_mem_for_func_locals(nd);		//stack manip
 						int r = CodeGen(nd->left);
@@ -1110,6 +1130,7 @@ int CodeGen(struct node *nd){
 					int foo = fprintf(fp,"MOV R%d,[R%d]\n",r,r1);
 
 					struct  gnode * temp  = fetch(local_head,nd->varname);
+					if(temp)
 
 					if(temp->type == 5 || temp->type == 6){
 
@@ -1163,6 +1184,7 @@ int CodeGen(struct node *nd){
 
 						struct gnode* temp  = fetch(local_head,nd->left->varname);
 
+						if(temp)
 						if(temp->type == 5 || temp->type == 6){
 
 							fprintf(fp,"MOV R%d,[R%d]\n",r1,r1);
@@ -1213,7 +1235,7 @@ int CodeGen(struct node *nd){
 
 		case READ :	{//load to register then load to memorand
 
-					int r =getReg();
+					int r = getReg();
 
 					if(nd->left->flag == ID){
 
@@ -1223,10 +1245,13 @@ int CodeGen(struct node *nd){
 
 						struct gnode* temp  = fetch(local_head,nd->left->varname);
 
-						if(temp->type == 5 || temp->type == 6){
+						if(temp) {
 
-							fprintf(fp,"MOV R%d,[R%d]\n",r1,r1);
+							if(temp->type == 5 || temp->type == 6){
+
+								fprintf(fp,"MOV R%d,[R%d]\n",r1,r1);
 							
+							}
 						}
 						
 						foo = fprintf(fp,"MOV [R%d],R%d\n",r1,r);
@@ -1375,6 +1400,15 @@ int CodeGen(struct node *nd){
 		case FUNC : {	//ADD : improve this point geta reg free it 
 						//		 in this process you will get the max reg in use
 						printf("Function call %s\n",nd->varname);
+
+						/*
+
+						struct gnode* temp = local_head;
+						while(temp && temp->bind >=-2) temp = temp->next; 
+						func_check_list(nd->left,temp);
+
+						*/
+
 						int r = getReg();
 						freeReg(r,nd);
 						printf("last free reg : %d\n",r-1);
